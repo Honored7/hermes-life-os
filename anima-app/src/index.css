@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+@theme {
+  --font-wizard: 'Fraunces', serif;
+  --font-body: 'Inter', sans-serif;
+  --radius-card: 20px;
+  --animate-breathe: breathe 6s ease-in-out infinite;
+  --animate-glow: glow 4s ease-in-out infinite;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-lantern: var(--lantern);
+  --color-ember: var(--ember);
+  --color-sage: var(--sage);
+  --color-teal: var(--teal);
+  --color-mood-joy: var(--mood-joy);
+  --color-mood-calm: var(--mood-calm);
+  --color-mood-stressed: var(--mood-stressed);
+  --color-mood-anxious: var(--mood-anxious);
+  --color-mood-sad: var(--mood-sad);
+  --color-mood-angry: var(--mood-angry);
+  --color-mood-low: var(--mood-low);
+  --color-mood-lonely: var(--mood-lonely);
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.06); opacity: 1; }
+}
+@keyframes glow {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
+:root, [data-theme="dark"] {
+  --bg: #16172A;
+  --surface: #232440;
+  --surface-2: #2F3155;
+  --ink: #F7F3EC;
+  --muted: #A9AAC4;
+  --faint: #6C6E8E;
+  --line: #33355A;
+  --lantern: #F5B841;
+  --ember: #E89B2E;
+  --sage: #7FB5A0;
+  --teal: #5A9B9B;
+  --mood-joy: #F5B841;
+  --mood-calm: #7FB5A0;
+  --mood-stressed: #E0A458;
+  --mood-anxious: #9B8BC4;
+  --mood-sad: #7A9CC6;
+  --mood-angry: #D08C7A;
+  --mood-low: #8A8FA3;
+  --mood-lonely: #C4909B;
+}
+
+[data-theme="light"] {
+  --bg: #F7F3EC;
+  --surface: #FFFFFF;
+  --surface-2: #EFEAE1;
+  --ink: #232440;
+  --muted: #5C5E78;
+  --faint: #9496AB;
+  --line: #E5DFD4;
+  --lantern: #D9942A;
+  --ember: #C07F1F;
+  --sage: #5E9C86;
+  --teal: #478282;
+  --mood-joy: #D9942A;
+  --mood-calm: #5E9C86;
+  --mood-stressed: #C58A3E;
+  --mood-anxious: #8271AB;
+  --mood-sad: #6385AF;
+  --mood-angry: #BC7462;
+  --mood-low: #767B8E;
+  --mood-lonely: #B07985;
+}
+
+* { border-color: var(--line); }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* ── Mood slider ─────────────────────────────────────── */
+input[type="range"].mood-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background:
+    linear-gradient(to right,
+      var(--slider-color) 0%,
+      var(--slider-color) var(--slider-fill),
+      var(--surface-2) var(--slider-fill),
+      var(--surface-2) 100%);
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"].mood-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--slider-color);
+  border: 3px solid var(--bg);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--slider-color) 55%, transparent);
+  transition: transform 0.15s ease;
+}
+input[type="range"].mood-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+input[type="range"].mood-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--slider-color);
+  border: 3px solid var(--bg);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--slider-color) 55%, transparent);
+}

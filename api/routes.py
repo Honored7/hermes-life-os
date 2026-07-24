@@ -191,3 +191,19 @@ def _build_response(result: dict) -> WizardResponse:
             for a in result.get("alternatives", [])
         ],
     )
+
+
+# ─── Streaming check-in (intervention appears instantly, voice streams) ──
+@router.post("/wizard/respond/stream")
+async def wizard_respond_stream(req: MoodLogRequest):
+    """Check in with a mood. Returns the intervention/session data immediately,
+    then streams the wizard's spoken response token by token."""
+    from wellness.streaming import respond_stream
+
+    def generate():
+        for event in respond_stream(
+            _wizard, req.state, req.severity, req.message, req.context,
+        ):
+            yield f"data: {json_mod.dumps(event)}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
