@@ -7,6 +7,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
+from fastapi.responses import StreamingResponse
+import json as json_mod
 
 from wellness.interventions import INTERVENTIONS, get_intervention, get_by_state, get_all
 from wellness.protocols import PROTOCOLS, get_all_protocols
@@ -123,6 +125,15 @@ async def wizard_prepare(req: PreparationRequest):
 async def wizard_dream(req: DreamLogRequest):
     return _wizard.respond_to_dream(dream_description=req.description, dream_tone=req.tone)
 
+@router.post("/wizard/chat/stream")
+async def wizard_chat_stream(req: ChatRequest):
+    """Stream the wizard's response token by token (SSE)."""
+    def generate():
+        for chunk in _wizard.chat_stream(req.message, req.context):
+            yield f"data: {json_mod.dumps({'text': chunk})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 # ─── Protocols ────────────────────────────────────────────────────────
 

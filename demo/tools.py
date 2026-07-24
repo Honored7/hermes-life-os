@@ -442,6 +442,64 @@ def dispatch_tool(name: str, inp: Dict[str, Any]) -> str:
 
         return f"Unknown tool: {name}"
 
+    # ── wellness_recommend ────────────────────────────────────────────────
+    elif name == "wellness_recommend":
+        from wellness.engine import WellnessEngine
+        engine = WellnessEngine()
+        state = inp.get("state", "stressed")
+        severity = inp.get("severity", 5)
+        context = inp.get("context", {})
+        result = engine.recommend(state=state, severity=severity, context=context)
+        if not result.recommendations:
+            return f"No interventions found for '{state}' at severity {severity}."
+        lines = [f"Wellness recommendations for {state} ({severity}/10):"]
+        for r in result.recommendations:
+            lines.append(f"  → {r.intervention.name} ({r.intervention.duration_seconds}s) — {r.reason}")
+        if result.protocol:
+            lines.append(f"  🔗 Protocol: {result.protocol.name} ({len(result.protocol.steps)} steps)")
+        return "\n".join(lines)
+
+    # ── wellness_chat ─────────────────────────────────────────────────────
+    elif name == "wellness_chat":
+        from wellness.wizard import Wizard
+        wizard = Wizard()
+        result = wizard.chat(inp.get("message", ""))
+        return result.get("wizard_message", "I'm here.")
+
+    # ── wellness_respond ──────────────────────────────────────────────────
+    elif name == "wellness_respond":
+        from wellness.wizard import Wizard
+        wizard = Wizard()
+        result = wizard.respond_to_state(
+            state=inp.get("state", "stressed"),
+            severity=inp.get("severity", 5),
+            user_message=inp.get("message", ""),
+            context=inp.get("context", {}),
+        )
+        return result.get("wizard_message", "I'm here for you.")
+
+    # ── wellness_celebrate ────────────────────────────────────────────────
+    elif name == "wellness_celebrate":
+        from wellness.wizard import Wizard
+        wizard = Wizard()
+        result = wizard.celebrate_win(inp.get("description", ""))
+        return result.get("wizard_message", "That's wonderful!")
+
+    # ── wellness_complete ─────────────────────────────────────────────────
+    elif name == "wellness_complete":
+        from wellness.wizard import Wizard
+        wizard = Wizard()
+        result = wizard.complete_intervention(
+            intervention_id=inp.get("intervention_id", 0),
+            state=inp.get("state", ""),
+            severity_before=inp.get("severity_before", 5),
+            severity_after=inp.get("severity_after"),
+            effectiveness_rating=inp.get("effectiveness_rating"),
+            notes=inp.get("notes", ""),
+        )
+        return result.get("wizard_message", "Thanks for checking in.")
+
+
 # ---------------------------------------------------------------------------
 # Tool schemas
 # ---------------------------------------------------------------------------
@@ -588,4 +646,84 @@ TOOLS = [
             "tone":      {"type": "string", "description": "Overall tone: positive/negative/neutral/mixed"},
             "vividness": {"type": "integer","description": "How vivid was it 1-10"},
         }, "required": ["content"]}}},
+          {
+        "type": "function",
+        "function": {
+            "name": "wellness_recommend",
+            "description": "Recommend wellness interventions for an emotional state. Returns ranked interventions and optional protocol.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "state": {"type": "string", "description": "Emotional state: angry, anxious, stressed, sad, lonely, overwhelmed, restless, low_energy, frustrated, good"},
+                    "severity": {"type": "integer", "description": "Intensity 1-10", "default": 5},
+                    "context": {"type": "object", "description": "Optional context: location, time_available_min, can_go_outside, time_of_day"},
+                },
+                "required": ["state"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "wellness_chat",
+            "description": "Free-form conversation with the wellness wizard. The user can say anything and the wizard responds with warmth and wisdom.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "description": "What the user says"},
+                },
+                "required": ["message"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "wellness_respond",
+            "description": "Respond to a logged emotional state with a personalized intervention recommendation and wizard guidance.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "state": {"type": "string"},
+                    "severity": {"type": "integer", "default": 5},
+                    "message": {"type": "string", "default": ""},
+                    "context": {"type": "object"},
+                },
+                "required": ["state"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "wellness_celebrate",
+            "description": "Celebrate a user's win or positive moment. Positive reinforcement.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "description": {"type": "string", "description": "What went well"},
+                },
+                "required": ["description"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "wellness_complete",
+            "description": "Log a completed intervention and get a check-in response. Feeds the feedback loop.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "intervention_id": {"type": "integer"},
+                    "state": {"type": "string"},
+                    "severity_before": {"type": "integer"},
+                    "severity_after": {"type": "integer"},
+                    "effectiveness_rating": {"type": "integer", "description": "1-5"},
+                    "notes": {"type": "string"},
+                },
+                "required": ["intervention_id", "state", "severity_before"],
+            },
+        },
+    },
 ]

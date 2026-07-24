@@ -52,6 +52,49 @@ class Wizard:
         )
         self.engine = WellnessEngine()
         self.prompts = PromptBuilder()
+    def chat_stream(self, user_message: str, context: Optional[dict] = None):
+        """Stream a chat response token by token (Ollama only)."""
+        prompt = self.prompts.build_chat_response(
+            user_message=user_message,
+            history_summary=self._history_summary(),
+        )
+
+        if self.provider_name != "ollama":
+            # Non-Ollama: yield the full response at once
+            result = self._generate(WIZARD_SYSTEM, prompt)
+            yield result or "I'm here."
+            return
+
+        import json
+        import urllib.request
+
+        url = os.environ.get("OLLAMA_HOST", "http://localhost:11434") + "/api/chat"
+        payload = json.dumps({
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": WIZARD_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": True,
+            "think": False,
+            "options": {"num_predict": 512},
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            url, data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                for line in resp:
+                    data = json.loads(line.decode("utf-8"))
+                    content = data.get("message", {}).get("content", "")
+                    if content:
+                        yield content
+        except Exception as e:
+            yield f"I'm here. (Connection issue: {e})"
 
     # ─── LLM Generation ───────────────────────────────────────────────
 
