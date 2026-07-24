@@ -9,9 +9,11 @@ interface Props {
   state: string;
   severityBefore: number;
   onClose: () => void;
+  /** When provided (journey step), skip the rating and continue the path. */
+  onComplete?: () => void;
 }
 
-export function BreathingSession({ config, state, severityBefore, onClose }: Props) {
+export function BreathingSession({ config, state, severityBefore, onClose, onComplete }: Props) {
   const pattern = config.breathing_pattern;
   const phases = [
     { label: 'Breathe in', seconds: pattern.inhale, scale: 1 },
@@ -22,7 +24,7 @@ export function BreathingSession({ config, state, severityBefore, onClose }: Pro
 
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [cycle, setCycle] = useState(1);
-  const [stage, setStage] = useState<'breathe' | 'rate' | 'reflected'>('breathe');
+  const [stage, setStage] = useState<'breathe' | 'rate' | 'reflected' | 'stepDone'>('breathe');
   const [after, setAfter] = useState(5);
   const [checkinMsg, setCheckinMsg] = useState('');
   const [sending, setSending] = useState(false);
@@ -35,7 +37,7 @@ export function BreathingSession({ config, state, severityBefore, onClose }: Pro
       const next = (phaseIdx + 1) % phases.length;
       if (next === 0) {
         if (cycle >= pattern.cycles) {
-          setStage('rate');
+          setStage(onComplete ? 'stepDone' : 'rate');
           return;
         }
         setCycle((c) => c + 1);
@@ -43,7 +45,7 @@ export function BreathingSession({ config, state, severityBefore, onClose }: Pro
       setPhaseIdx(next);
     }, phase.seconds * 1000);
     return () => clearTimeout(timer);
-  }, [phaseIdx, cycle, stage, phases.length, pattern.cycles, phase.seconds]);
+  }, [phaseIdx, cycle, stage, phases.length, pattern.cycles, phase.seconds, onComplete]);
 
   const submitRating = async () => {
     setSending(true);
@@ -106,12 +108,23 @@ export function BreathingSession({ config, state, severityBefore, onClose }: Pro
           </>
         )}
 
+        {stage === 'stepDone' && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
+            <p className="font-wizard text-2xl">Well done.</p>
+            <p className="mt-2 text-sm text-muted">You breathed through {pattern.cycles} full cycles. The path continues.</p>
+            <button
+              onClick={onComplete}
+              className="mt-8 w-full rounded-full bg-lantern py-3 font-medium text-bg transition-all hover:bg-ember hover:shadow-[0_0_22px_rgba(245,184,65,0.4)]"
+            >
+              Continue the journey
+            </button>
+          </motion.div>
+        )}
+
         {stage === 'rate' && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
             <p className="font-wizard text-2xl">Well done.</p>
-            <p className="mt-2 text-sm text-muted">
-              You gave yourself {pattern.cycles} full breaths. How do you feel now?
-            </p>
+            <p className="mt-2 text-sm text-muted">You gave yourself {pattern.cycles} full breaths. How do you feel now?</p>
             <div className="mt-6 flex items-center">
               <span className="text-xs text-faint">1</span>
               <input

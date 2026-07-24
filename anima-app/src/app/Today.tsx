@@ -7,6 +7,7 @@ import {
 import type { IconComponent } from '../components/icons/dimensions';
 import { streamCheckIn } from '../lib/api';
 import { InterventionCard } from '../components/cards/InterventionCard';
+import { ProtocolJourney } from '../components/journey/ProtocolJourney';
 import { BreathingSession } from '../components/session/BreathingSession';
 import { LanternLogo } from '../components/brand/LanternLogo';
 
@@ -76,7 +77,8 @@ export function Today() {
     setMeta(null);
   };
 
-  if (showSession && meta?.session_config?.breathing_pattern) {
+  // Standalone breathing session (single intervention, full rating flow)
+  if (showSession && meta?.session_config?.breathing_pattern && !meta?.protocol) {
     return (
       <BreathingSession
         config={meta.session_config}
@@ -89,7 +91,6 @@ export function Today() {
 
   return (
     <div className="relative h-full overflow-y-auto">
-      {/* Ambient light that takes on the mood's color */}
       <motion.div
         className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full blur-[110px]"
         animate={{ backgroundColor: accent, opacity: mood ? 0.22 : 0.1 }}
@@ -102,7 +103,6 @@ export function Today() {
           <p className="mt-1 text-sm text-muted">How are you arriving right now?</p>
         </div>
 
-        {/* Mood grid */}
         <div className="grid grid-cols-4 gap-2.5">
           {MOODS.map((m) => {
             const selected = mood?.state === m.state;
@@ -129,7 +129,6 @@ export function Today() {
           })}
         </div>
 
-        {/* Intensity + note + submit */}
         <AnimatePresence>
           {mood && phase === 'select' && (
             <motion.div
@@ -169,7 +168,6 @@ export function Today() {
           )}
         </AnimatePresence>
 
-        {/* The wizard's response */}
         {(phase === 'listening' || phase === 'responded') && (
           <div className="space-y-4">
             <div className="flex gap-3">
@@ -203,15 +201,23 @@ export function Today() {
               </div>
             </div>
 
-            {meta?.intervention && (
+            {/* A protocol journey, or a single intervention */}
+            {meta?.protocol ? (
+              <ProtocolJourney
+                protocol={meta.protocol}
+                state={mood!.state}
+                severityBefore={severity}
+                onDone={reset}
+              />
+            ) : meta?.intervention ? (
               <InterventionCard
                 intervention={meta.intervention}
                 sessionConfig={meta.session_config}
                 onBegin={() => setShowSession(true)}
               />
-            )}
+            ) : null}
 
-            {phase === 'responded' && (
+            {phase === 'responded' && !meta?.protocol && (
               <button onClick={reset} className="mx-auto block text-xs text-faint underline-offset-4 hover:text-lantern hover:underline">
                 Check in again
               </button>

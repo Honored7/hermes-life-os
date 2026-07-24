@@ -1,11 +1,10 @@
 """
 Streaming check-in.
 
-The engine decides the intervention instantly (no LLM), so the
-intervention card can appear immediately — then the wizard's voice
-streams in over it. Also enforces a hard guard against invented
-memories: the wizard is told exactly what history exists, and that
-it must not reference anything else.
+The engine decides the intervention/protocol instantly (no LLM), so the
+card or journey can appear immediately — then the wizard's voice streams
+in over it. Enforces a hard guard against invented memories: the wizard
+is told exactly what history exists and forbidden from referencing more.
 """
 from __future__ import annotations
 
@@ -18,7 +17,6 @@ from wellness.prompts import WIZARD_SYSTEM
 
 
 def _safe_history(wizard, state=None):
-    """Real history only, with an explicit instruction not to invent."""
     try:
         from storage import search_memory
         parts = []
@@ -67,10 +65,19 @@ def _stream_ollama(model, system, prompt, max_tokens=512):
         yield f" (I'm having trouble finding my voice right now — {e})"
 
 
+def _intervention_payload(iv):
+    return {
+        "id": iv.id, "name": iv.name, "family": iv.family.value,
+        "duration_seconds": iv.duration_seconds, "format": iv.format.value,
+        "steps": list(iv.steps),
+        "wizard_intro": iv.wizard_intro, "wizard_outro": iv.wizard_outro,
+    }
+
+
 def respond_stream(wizard, state, severity=5, user_message="", context=None):
     """
-    Generator yielding SSE-friendly events:
-      {"type":"meta","data":{...}}  — intervention/protocol/session_config (instant)
+    Yields:
+      {"type":"meta","data":{...}}  — intervention or full protocol journey (instant)
       {"type":"token","text":...}   — the wizard's words, chunk by chunk
       {"type":"done"}
     """
@@ -88,15 +95,33 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
         protocol = result.protocol
         first = protocol.steps[0]
         first_iv = INTERVENTIONS.get(first.intervention_id) if first.intervention_id else None
+
+        # Full journey data so the frontend can walk the whole path
+        steps_data = []
+        for i, s in enumerate(protocol.steps):
+            iv = INTERVENTIONS.get(s.intervention_id) if s.intervention_id else None
+            steps_data.append({
+                "step_number": i,
+                "intervention_id": s.intervention_id,
+                "intervention_name": iv.name if iv else "Check-in",
+                "wizard_message": s.wizard_message,
+                "is_check_in": s.is_check_in,
+                "intervention": _intervention_payload(iv) if iv else None,
+                "session_config": wizard._session_config(iv) if iv else None,
+            })
+
+        meta["protocol"] = {
+            "id": protocol.id,
+            "name": protocol.name,
+            "trigger_state": protocol.trigger_state,
+            "total_steps": len(protocol.steps),
+            "current_step": 0,
+            "steps": steps_data,
+        }
         if first_iv:
-            meta["intervention"] = {
-                "id": first_iv.id, "name": first_iv.name, "family": first_iv.family.value,
-                "duration_seconds": first_iv.duration_seconds, "format": first_iv.format.value,
-                "steps": list(first_iv.steps),
-                "wizard_intro": first_iv.wizard_intro, "wizard_outro": first_iv.wizard_outro,
-            }
+            meta["intervention"] = _intervention_payload(first_iv)
             meta["session_config"] = wizard._session_config(first_iv)
-        meta["protocol"] = {"id": protocol.id, "name": protocol.name, "total_steps": len(protocol.steps)}
+
         prompt = wizard.prompts.build_mood_response(
             state=state, severity=severity, user_message=user_message,
             intervention_name=first_iv.name if first_iv else "General support",
@@ -115,12 +140,7 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
     elif result.recommendations:
         top = result.recommendations[0]
         iv = top.intervention
-        meta["intervention"] = {
-            "id": iv.id, "name": iv.name, "family": iv.family.value,
-            "duration_seconds": iv.duration_seconds, "format": iv.format.value,
-            "steps": list(iv.steps),
-            "wizard_intro": iv.wizard_intro, "wizard_outro": iv.wizard_outro,
-        }
+        meta["intervention"] = _intervention_payload(iv)
         meta["session_config"] = wizard._session_config(iv)
         meta["alternatives"] = [
             {"id": r.intervention.id, "name": r.intervention.name, "reason": r.reason}
@@ -135,10 +155,8 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
         )
         fallback = iv.wizard_intro
 
-    # 1) structured data arrives instantly
     yield {"type": "meta", "data": meta}
 
-    # 2) then the wizard's voice streams in
     if prompt is not None and wizard.provider_name == "ollama":
         streamed = False
         for token in _stream_ollama(wizard.model, WIZARD_SYSTEM, prompt):
