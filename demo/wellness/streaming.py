@@ -1,10 +1,12 @@
 """
-Streaming check-in.
+Streaming check-in + journey narration.
 
-The engine decides the intervention/protocol instantly (no LLM), so the
-card or journey can appear immediately — then the wizard's voice streams
-in over it. Enforces a hard guard against invented memories: the wizard
-is told exactly what history exists and forbidden from referencing more.
+- respond_stream: engine decides instantly; for a single intervention the
+  wizard's opening streams over it. For a protocol, the journey itself
+  narrates (no separate opening monologue) — faster for someone in crisis.
+- narrate_step_stream: fresh, personal narration for each journey step,
+  paraphrasing the step's essence so it never repeats verbatim.
+- _safe_history: hard guard against invented memories.
 """
 from __future__ import annotations
 
@@ -78,7 +80,7 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
     """
     Yields:
       {"type":"meta","data":{...}}  — intervention or full protocol journey (instant)
-      {"type":"token","text":...}   — the wizard's words, chunk by chunk
+      {"type":"token","text":...}   — the wizard's words (single interventions only)
       {"type":"done"}
     """
     context = dict(context or {})
@@ -96,7 +98,6 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
         first = protocol.steps[0]
         first_iv = INTERVENTIONS.get(first.intervention_id) if first.intervention_id else None
 
-        # Full journey data so the frontend can walk the whole path
         steps_data = []
         for i, s in enumerate(protocol.steps):
             iv = INTERVENTIONS.get(s.intervention_id) if s.intervention_id else None
@@ -122,20 +123,10 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
             meta["intervention"] = _intervention_payload(first_iv)
             meta["session_config"] = wizard._session_config(first_iv)
 
-        prompt = wizard.prompts.build_mood_response(
-            state=state, severity=severity, user_message=user_message,
-            intervention_name=first_iv.name if first_iv else "General support",
-            intervention_description=first_iv.description if first_iv else "",
-            intervention_steps=list(first_iv.steps) if first_iv else [],
-            intervention_duration=first_iv.duration_seconds if first_iv else 0,
-            context=context, history_summary=history,
-            protocol_name=protocol.name,
-            protocol_steps=[
-                INTERVENTIONS[s.intervention_id].name if s.intervention_id else "Check-in"
-                for s in protocol.steps
-            ],
-        )
-        fallback = first.wizard_message
+        # The journey narrates itself — no opening monologue for someone in crisis.
+        yield {"type": "meta", "data": meta}
+        yield {"type": "done"}
+        return
 
     elif result.recommendations:
         top = result.recommendations[0]
@@ -170,4 +161,73 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
     else:
         yield {"type": "token", "text": fallback}
 
+    yield {"type": "done"}
+
+
+def narrate_step_stream(wizard, protocol_id, step_number, state, severity=5, user_message=""):
+    """
+    Fresh narration for one journey step. Paraphrases the step's essence
+    (never verbatim), acknowledges the step just completed, and keeps the
+    gentle-coach "go do it" energy.
+    """
+    from wellness.protocols import PROTOCOLS
+    protocol = PROTOCOLS.get(protocol_id)
+    if not protocol or step_number >= len(protocol.steps):
+        yield {"type": "token", "text": "Let's keep going."}
+        yield {"type": "done"}
+        return
+
+    step = protocol.steps[step_number]
+    iv = INTERVENTIONS.get(step.intervention_id) if step.intervention_id else None
+    history = _safe_history(wizard, state)
+
+    if step_number > 0:
+        prev = protocol.steps[step_number - 1]
+        prev_iv = INTERVENTIONS.get(prev.intervention_id) if prev.intervention_id else None
+        prev_name = prev_iv.name if prev_iv else "the previous step"
+        prev_line = f"They just finished: {prev_name}. Acknowledge that briefly."
+    else:
+        prev_line = "This is the first step — they've just committed to the journey."
+
+    step_name = iv.name if iv else "a check-in"
+
+    if step.is_check_in:
+        guidance = (
+            "This is the final check-in. Warmly invite them to notice where the feeling "
+            "is now compared to where it started, and to rate it. Honor the effort they just gave."
+        )
+    else:
+        guidance = (
+            "Be a gentle coach: warm, but clear and a little directive. Tell them what to do "
+            "and nudge them to go do it now. Short sentences carry urgency better than long ones."
+        )
+
+    note_line = f'\nWhen they checked in, they said: "{user_message}"' if user_message else ""
+
+    prompt = f"""You are walking someone through the "{protocol.name}" journey because they're feeling {state} ({severity}/10).
+
+{prev_line}
+Now guide them into: {step_name}.
+
+The core of what this step must convey — say it fresh in your own voice, do NOT repeat it word-for-word:
+"{step.wizard_message}"
+
+{guidance}
+{note_line}
+{history}
+
+Keep it under 60 words. Speak directly to them. No markdown, no lists."""
+
+    streamed = False
+    if wizard.provider_name == "ollama":
+        for token in _stream_ollama(wizard.model, WIZARD_SYSTEM, prompt):
+            streamed = True
+            yield {"type": "token", "text": token}
+    else:
+        msg = wizard._generate(WIZARD_SYSTEM, prompt)
+        if msg:
+            streamed = True
+            yield {"type": "token", "text": msg}
+    if not streamed:
+        yield {"type": "token", "text": step.wizard_message}
     yield {"type": "done"}

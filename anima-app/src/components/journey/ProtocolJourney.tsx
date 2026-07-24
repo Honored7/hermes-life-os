@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Wind, Heart, ArrowRight } from '@phosphor-icons/react';
 import { BreathingSession } from '../session/BreathingSession';
-import { completeIntervention } from '../../lib/api';
+import { completeIntervention, streamStepNarration } from '../../lib/api';
 
 const STATE_COLORS: Record<string, string> = {
   angry: 'var(--mood-angry)',
@@ -16,7 +16,7 @@ const STATE_COLORS: Record<string, string> = {
 
 type StepStatus = 'done' | 'active' | 'todo';
 
-/** Reveals the wizard's words a little at a time, like speech. */
+/** Fallback: reveals pre-written words a little at a time. */
 function Spoken({ text }: { text: string }) {
   const words = text.split(' ');
   const [count, setCount] = useState(0);
@@ -33,18 +33,36 @@ function Spoken({ text }: { text: string }) {
   return (
     <span>
       {words.slice(0, count).join(' ')}
-      {count < words.length && (
-        <motion.span
-          className="ml-1 inline-block h-3.5 w-1 translate-y-0.5 rounded-full bg-lantern"
-          animate={{ opacity: [1, 0.2, 1] }}
-          transition={{ duration: 0.9, repeat: Infinity }}
-        />
-      )}
+      {count < words.length && <Cursor />}
     </span>
   );
 }
 
-/** Soft circular countdown for short physical steps (cold water, etc.). */
+function Cursor() {
+  return (
+    <motion.span
+      className="ml-1 inline-block h-3.5 w-1 translate-y-0.5 rounded-full bg-lantern"
+      animate={{ opacity: [1, 0.2, 1] }}
+      transition={{ duration: 0.9, repeat: Infinity }}
+    />
+  );
+}
+
+function ThinkingDots() {
+  return (
+    <span className="inline-flex items-center gap-1.5 pt-1">
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          className="h-1.5 w-1.5 rounded-full bg-lantern"
+          animate={{ opacity: [0.25, 1, 0.25] }}
+          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+        />
+      ))}
+    </span>
+  );
+}
+
 function StepTimer({ seconds }: { seconds: number }) {
   const [left, setLeft] = useState(seconds);
   useEffect(() => {
@@ -79,10 +97,11 @@ interface Props {
   protocol: any;
   state: string;
   severityBefore: number;
+  userNote?: string;
   onDone: () => void;
 }
 
-export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Props) {
+export function ProtocolJourney({ protocol, state, severityBefore, userNote = '', onDone }: Props) {
   const steps = protocol.steps;
   const accent = STATE_COLORS[protocol.trigger_state] || 'var(--lantern)';
 
@@ -93,7 +112,42 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
   const [closing, setClosing] = useState('');
   const [finished, setFinished] = useState(false);
 
+  // Fresh narrations, spoken by the wizard as the journey unfolds
+  const [narrations, setNarrations] = useState<Record<number, string>>({});
+  const [streamingStep, setStreamingStep] = useState<number | null>(null);
+  const startedRef = useRef<Set<number>>(new Set());
+
   const advance = () => setCurrent((c) => Math.min(c + 1, steps.length - 1));
+
+  // Speak a step's narration; when it finishes, quietly prepare the next one
+  // so the wizard always has the next words ready.
+  const startNarration = (idx: number) => {
+    if (startedRef.current.has(idx) || idx >= steps.length) return;
+    startedRef.current.add(idx);
+    setStreamingStep(idx);
+    streamStepNarration(
+      {
+        protocol_id: protocol.id,
+        step_number: idx,
+        state,
+        severity: severityBefore,
+        message: userNote,
+      },
+      {
+        onToken: (t) =>
+          setNarrations((prev) => ({ ...prev, [idx]: (prev[idx] || '') + t })),
+        onDone: () => {
+          setStreamingStep((s) => (s === idx ? null : s));
+          if (idx + 1 < steps.length) startNarration(idx + 1);
+        },
+      },
+    ).catch(() => setStreamingStep((s) => (s === idx ? null : s)));
+  };
+
+  useEffect(() => {
+    startNarration(current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current]);
 
   const submitCheckin = async () => {
     setReflecting(true);
@@ -109,7 +163,6 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
     }
   };
 
-  // ── Breathing step opens the session, then returns to the path ──
   if (showBreathing) {
     const step = steps[current];
     return (
@@ -123,7 +176,6 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
     );
   }
 
-  // ── Journey's end ──
   if (finished) {
     const improved = severityBefore - after;
     return (
@@ -158,14 +210,12 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
 
   return (
     <div className="pt-1">
-      {/* Journey header */}
       <div className="mb-1 flex items-baseline justify-between">
         <h2 className="font-wizard text-xl" style={{ color: accent }}>{protocol.name}</h2>
         <span className="text-[11px] uppercase tracking-widest text-faint">
           Step {current + 1} of {steps.length}
         </span>
       </div>
-      {/* Progress — the path lights up behind you */}
       <div className="mb-6 h-1 overflow-hidden rounded-full bg-surface-2">
         <motion.div
           className="h-full rounded-full"
@@ -175,7 +225,6 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
         />
       </div>
 
-      {/* The path */}
       <div>
         {steps.map((step: any, i: number) => {
           const status: StepStatus = i < current ? 'done' : i === current ? 'active' : 'todo';
@@ -184,9 +233,11 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
           const isCheckin = !!step.is_check_in;
           const shortTimer = !isBreathing && !isCheckin && step.intervention && step.intervention.duration_seconds <= 180;
 
+          const narr = narrations[i];
+          const isLive = streamingStep === i;
+
           return (
             <div key={i} className="flex">
-              {/* Node + connecting line */}
               <div className="mr-4 flex flex-col items-center">
                 <Node status={status} isCheckin={isCheckin} isBreathing={isBreathing} accent={accent} />
                 {!isLast && (
@@ -197,7 +248,6 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
                 )}
               </div>
 
-              {/* Step content */}
               <div className="min-w-0 flex-1 pb-7">
                 {status === 'todo' && (
                   <p className="pt-1.5 text-sm text-faint">{step.intervention_name}</p>
@@ -212,11 +262,18 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
                 {status === 'active' && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
                     <p className="font-wizard text-lg leading-tight">{step.intervention_name}</p>
-                    <p className="mt-2 text-[15px] leading-relaxed text-muted">
-                      <Spoken text={step.wizard_message} />
-                    </p>
 
-                    {/* Breathing step */}
+                    {/* The wizard's fresh words for this step */}
+                    <div className="mt-2 text-[15px] leading-relaxed text-muted">
+                      {narr ? (
+                        <span>{narr}{isLive && <Cursor />}</span>
+                      ) : isLive ? (
+                        <ThinkingDots />
+                      ) : (
+                        <Spoken text={step.wizard_message} />
+                      )}
+                    </div>
+
                     {isBreathing && (
                       <button
                         onClick={() => setShowBreathing(true)}
@@ -226,7 +283,6 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
                       </button>
                     )}
 
-                    {/* Check-in step */}
                     {isCheckin && (
                       <div className="mt-4 rounded-card border border-line bg-surface p-4">
                         <p className="text-sm text-muted">Where is it now?</p>
@@ -252,7 +308,6 @@ export function ProtocolJourney({ protocol, state, severityBefore, onDone }: Pro
                       </div>
                     )}
 
-                    {/* Action / reflection step */}
                     {!isBreathing && !isCheckin && step.intervention && (
                       <div className="mt-4 space-y-3">
                         <ul className="space-y-1.5">

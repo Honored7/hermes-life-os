@@ -77,7 +77,6 @@ export function Today() {
     setMeta(null);
   };
 
-  // Standalone breathing session (single intervention, full rating flow)
   if (showSession && meta?.session_config?.breathing_pattern && !meta?.protocol) {
     return (
       <BreathingSession
@@ -170,43 +169,47 @@ export function Today() {
 
         {(phase === 'listening' || phase === 'responded') && (
           <div className="space-y-4">
-            <div className="flex gap-3">
-              <div className="mt-1 shrink-0">
-                <LanternLogo size={26} breathing={phase === 'listening'} />
+            {/* For a single intervention, the wizard speaks here.
+                For a protocol, the journey itself is the wizard's voice. */}
+            {!meta?.protocol && (
+              <div className="flex gap-3">
+                <div className="mt-1 shrink-0">
+                  <LanternLogo size={26} breathing={phase === 'listening'} />
+                </div>
+                <div className="min-w-0">
+                  {phase === 'listening' && !wizardMsg ? (
+                    <div className="flex items-center gap-1.5 pt-2">
+                      {[0, 1, 2].map((i) => (
+                        <motion.span
+                          key={i}
+                          className="h-1.5 w-1.5 rounded-full bg-lantern"
+                          animate={{ opacity: [0.25, 1, 0.25] }}
+                          transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="font-wizard text-[17px] leading-relaxed">
+                      {wizardMsg}
+                      {phase === 'listening' && (
+                        <motion.span
+                          className="ml-1 inline-block h-4 w-1.5 translate-y-0.5 rounded-full bg-lantern"
+                          animate={{ opacity: [1, 0.2, 1] }}
+                          transition={{ duration: 1, repeat: Infinity }}
+                        />
+                      )}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="min-w-0">
-                {phase === 'listening' && !wizardMsg ? (
-                  <div className="flex items-center gap-1.5 pt-2">
-                    {[0, 1, 2].map((i) => (
-                      <motion.span
-                        key={i}
-                        className="h-1.5 w-1.5 rounded-full bg-lantern"
-                        animate={{ opacity: [0.25, 1, 0.25] }}
-                        transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="font-wizard text-[17px] leading-relaxed">
-                    {wizardMsg}
-                    {phase === 'listening' && (
-                      <motion.span
-                        className="ml-1 inline-block h-4 w-1.5 translate-y-0.5 rounded-full bg-lantern"
-                        animate={{ opacity: [1, 0.2, 1] }}
-                        transition={{ duration: 1, repeat: Infinity }}
-                      />
-                    )}
-                  </p>
-                )}
-              </div>
-            </div>
+            )}
 
-            {/* A protocol journey, or a single intervention */}
             {meta?.protocol ? (
               <ProtocolJourney
                 protocol={meta.protocol}
                 state={mood!.state}
                 severityBefore={severity}
+                userNote={note}
                 onDone={reset}
               />
             ) : meta?.intervention ? (

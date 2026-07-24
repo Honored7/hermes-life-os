@@ -94,3 +94,43 @@ export async function completeIntervention(
   });
   return res.json();
 }
+
+/** Stream a freshly-spoken narration for one journey step. */
+export async function streamStepNarration(
+  payload: {
+    protocol_id: string;
+    step_number: number;
+    state: string;
+    severity: number;
+    message: string;
+  },
+  handlers: { onToken: (t: string) => void; onDone: () => void },
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/v1/wizard/narrate/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok || !response.body) throw new Error(`narration failed (${response.status})`);
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t.startsWith('data: ')) continue;
+      try {
+        const ev = JSON.parse(t.slice(6));
+        if (ev.type === 'token') handlers.onToken(ev.text);
+        else if (ev.type === 'done') { handlers.onDone(); return; }
+      } catch { /* ignore malformed */ }
+    }
+  }
+  handlers.onDone();
+}

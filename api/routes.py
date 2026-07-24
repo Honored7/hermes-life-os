@@ -207,3 +207,26 @@ async def wizard_respond_stream(req: MoodLogRequest):
             yield f"data: {json_mod.dumps(event)}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ─── Fresh per-step journey narration ────────────────────────────────
+class NarrateRequest(BaseModel):
+    protocol_id: str
+    step_number: int
+    state: str
+    severity: int = 5
+    message: str = ""
+
+
+@router.post("/wizard/narrate/stream")
+async def wizard_narrate_stream(req: NarrateRequest):
+    """Stream a freshly-spoken narration for one step of a protocol journey."""
+    from wellness.streaming import narrate_step_stream
+
+    def generate():
+        for event in narrate_step_stream(
+            _wizard, req.protocol_id, req.step_number, req.state, req.severity, req.message,
+        ):
+            yield f"data: {json_mod.dumps(event)}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
