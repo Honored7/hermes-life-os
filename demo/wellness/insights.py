@@ -19,15 +19,19 @@ def get_wins(limit: int = 12) -> list:
 
 
 def get_effective_interventions() -> list:
-    logs = [l for l in search_memory("intervention", limit=50) if l.get("type") == "intervention"]
+    logs = [
+        item for item in search_memory("intervention", limit=50)
+        if item.get("type") == "intervention"
+    ]
     by_name: dict = {}
-    for l in logs:
-        name = l.get("intervention_name") or "A practice"
+    for item in logs:
+        name = item.get("intervention_name") or "A practice"
         entry = by_name.setdefault(
-            name, {"name": name, "times_used": 0, "improvements": [], "state": l.get("state")}
+            name,
+            {"name": name, "times_used": 0, "improvements": [], "state": item.get("state")},
         )
         entry["times_used"] += 1
-        before, after = l.get("severity_before"), l.get("severity_after")
+        before, after = item.get("severity_before"), item.get("severity_after")
         if isinstance(before, (int, float)) and isinstance(after, (int, float)):
             entry["improvements"].append(before - after)
     result = []
@@ -38,7 +42,6 @@ def get_effective_interventions() -> list:
     result.sort(key=lambda x: (x["avg_improvement"] if x["avg_improvement"] is not None else -99),
                 reverse=True)
     return result[:5]
-
 
 def _recent_summary() -> str:
     """A compact factual digest of the last 7 days for the reflection prompt."""

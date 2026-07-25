@@ -11,8 +11,8 @@ Example:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional, Callable
+from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass

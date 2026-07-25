@@ -22,27 +22,8 @@ from wellness.prompts import WIZARD_SYSTEM
 
 
 def _safe_history(wizard, state=None):
-    try:
-        from storage import search_memory
-        parts = []
-        if state:
-            r = search_memory(f"mood {state}", limit=5)
-            if r:
-                parts.append(f"they have logged '{state}' {len(r)} time(s) recently")
-        iv = search_memory("intervention", limit=5)
-        names = [e.get("intervention_name") for e in iv if e.get("intervention_name")]
-        if names:
-            parts.append(f"recent interventions: {', '.join(names)}")
-        wins = search_memory("win", limit=3)
-        if wins:
-            parts.append(f"{len(wins)} win(s) celebrated recently")
-        if parts:
-            return " ".join(parts) + " — reference ONLY these facts, nothing else."
-        return ("NONE. This is a fresh start. Do NOT mention any past sessions, "
-                "practices, patterns, or shared history. Speak only to this present moment.")
-    except Exception:
-        return "NONE. Do not reference any past events."
-
+    """Delegate to the single guarded history implementation in wizard."""
+    return wizard._history_summary(state)
 
 def _stream_ollama(model, system, prompt, max_tokens=512):
     url = os.environ.get("OLLAMA_HOST", "http://localhost:11434") + "/api/chat"

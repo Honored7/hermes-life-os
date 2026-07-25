@@ -400,7 +400,7 @@ def dispatch_tool(name: str, inp: Dict[str, Any]) -> str:
             profile[k] = v
         profile["onboarded"] = True
         save_profile(profile)
-        return f"Profile saved."
+        return "Profile saved."
 
     # ── get_profile ───────────────────────────────────────────────────────────
     elif name == "get_profile":

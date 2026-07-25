@@ -12,7 +12,6 @@ Every prompt is built dynamically based on:
 
 from __future__ import annotations
 
-from typing import Optional
 
 
 # ─── Wizard Personality (System Prompt) ───────────────────────────────
@@ -84,7 +83,7 @@ class PromptBuilder:
         parts = []
 
         # Current situation
-        parts.append(f"The user just logged their emotional state.")
+        parts.append("The user just logged their emotional state.")
         parts.append(f"State: {state} (severity: {severity}/10)")
         if user_message:
             parts.append(f'They said: "{user_message}"')
@@ -103,18 +102,18 @@ class PromptBuilder:
         # What to recommend
         if protocol_name and protocol_steps:
             parts.append(f"RECOMMENDED PROTOCOL: {protocol_name}")
-            parts.append(f"This is a multi-step journey. Guide them through the FIRST step:")
+            parts.append("This is a multi-step journey. Guide them through the FIRST step:")
             for i, step in enumerate(protocol_steps):
                 parts.append(f"  Step {i+1}: {step}")
-            parts.append(f"Introduce the protocol warmly, then guide them into Step 1.")
+            parts.append("Introduce the protocol warmly, then guide them into Step 1.")
         else:
             parts.append(f"RECOMMENDED INTERVENTION: {intervention_name}")
             parts.append(f"Description: {intervention_description}")
             parts.append(f"Duration: {intervention_duration} seconds")
-            parts.append(f"Steps:")
+            parts.append("Steps:")
             for step in intervention_steps:
                 parts.append(f"  - {step}")
-            parts.append(f"Guide them into this intervention naturally. Don't list the steps clinically — weave them into your voice.")
+            parts.append("Guide them into this intervention naturally. Don't list the steps clinically — weave them into your voice.")
 
         if alternatives:
             parts.append(f"Alternatives you can mention briefly: {', '.join(alternatives)}")

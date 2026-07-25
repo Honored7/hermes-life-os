@@ -33,7 +33,7 @@ Usage (see demo/run_scheduler.py for the wired-up production entry point):
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
 

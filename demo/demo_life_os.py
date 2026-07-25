@@ -53,9 +53,9 @@ import os
 import sys
 import textwrap
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 try:
     from rich.console import Console
@@ -81,18 +81,14 @@ from llm_providers import (
     PROVIDERS, ProviderError, resolve_provider, default_model_for, get_client,
 )
 from storage import (
-    HERMES_DIR, MEMORY_FILE, PROFILE_FILE, HABITS_FILE, GOALS_FILE,
+    MEMORY_FILE, PROFILE_FILE, HABITS_FILE, GOALS_FILE,
     NUTRITION_FILE, SLEEP_FILE, HYDRATION_FILE, FITNESS_FILE,
     FOCUS_FILE, MENTAL_FILE,
-    load_profile, save_profile, load_habits, save_habits,
-    load_goals, save_goals, load_nutrition, save_nutrition,
-    load_sleep, save_sleep, load_hydration, save_hydration,
-    load_fitness, save_fitness, load_focus, save_focus,
-    load_mental, save_mental,
-    write_memory, search_memory, get_recent_memory, memory_count,
+    save_profile, save_habits,
+    save_goals, save_nutrition,
+    save_sleep, load_hydration, save_hydration,
+    write_memory, memory_count,
 )
-from patterns import detect_patterns
-from analytics import compute_correlations, format_correlation_insights
 from tools import dispatch_tool, TOOLS
 
 console = Console(width=min(110, shutil.get_terminal_size().columns))
@@ -137,7 +133,7 @@ DEMO_SCENARIOS = {
     },
     "checkin": {
         "title": "Midday Check-in",
-        "prompt": textwrap.dedent(f"""
+        "prompt": textwrap.dedent("""
             Midday check-in.
             - Ran 30 minutes this morning
             - Had breakfast: oatmeal and coffee (~400 cal)
@@ -151,7 +147,7 @@ DEMO_SCENARIOS = {
     },
     "evening": {
         "title": "Evening Reflection",
-        "prompt": textwrap.dedent(f"""
+        "prompt": textwrap.dedent("""
             Evening. Let's reflect.
             - Finished a big feature for my project
             - Skipped afternoon deep work, got distracted by email
@@ -168,7 +164,7 @@ DEMO_SCENARIOS = {
     },
     "weekly": {
         "title": "Weekly Review",
-        "prompt": textwrap.dedent(f"""
+        "prompt": textwrap.dedent("""
             Sunday evening. Weekly review.
             - Ran 2 out of 3 planned days
             - Side project 30% closer to done
@@ -185,7 +181,7 @@ DEMO_SCENARIOS = {
     },
     "nutrition": {
         "title": "Nutrition Check-in",
-        "prompt": textwrap.dedent(f"""
+        "prompt": textwrap.dedent("""
             Let's review my nutrition today.
             - Breakfast: Greek yogurt with berries (~300 cal, 20g protein)
             - Lunch: Grilled chicken salad (~500 cal, 35g protein)
@@ -199,7 +195,7 @@ DEMO_SCENARIOS = {
     },
     "sleep": {
         "title": "Sleep Analysis",
-        "prompt": textwrap.dedent(f"""
+        "prompt": textwrap.dedent("""
             Log last night's sleep and analyze.
             - Went to bed at 11:30pm
             - Woke up at 7:00am (7.5 hours)
@@ -212,7 +208,7 @@ DEMO_SCENARIOS = {
     },
     "fitness": {
         "title": "Fitness Summary",
-        "prompt": textwrap.dedent(f"""
+        "prompt": textwrap.dedent("""
             Log today's workout and give me a fitness summary.
             - Morning run: 5km in 28 minutes, high intensity
             - Calories burned: approximately 350
@@ -225,7 +221,7 @@ DEMO_SCENARIOS = {
     },
     "mental": {
         "title": "Mental Wellness Check",
-        "prompt": textwrap.dedent(f"""
+        "prompt": textwrap.dedent("""
             Mental wellness check-in.
             - Stress today: 4/10 - much better than yesterday
             - Did 15 minutes of meditation this morning
@@ -239,7 +235,7 @@ DEMO_SCENARIOS = {
     },
     "focus": {
         "title": "Focus & Productivity Report",
-        "prompt": textwrap.dedent(f"""
+        "prompt": textwrap.dedent("""
             Log my focus sessions and give me a productivity report.
             - Morning session: 90 minutes on project feature, completed, 1 distraction, quality 8/10
             - Afternoon session: 45 minutes on code review, completed, 3 distractions, quality 6/10
@@ -265,7 +261,7 @@ DEMO_SCENARIOS = {
     },
     "health": {
         "title": "Full Health Dashboard",
-        "prompt": textwrap.dedent(f"""
+        "prompt": textwrap.dedent("""
             Give me a complete health dashboard for today and this week.
             Get the health dashboard and weekly health report.
             Detect all patterns across nutrition, sleep, fitness, mental health, and focus.
@@ -496,7 +492,8 @@ def run_life_os(scenario: Dict[str, Any], client, model: str = DEFAULT_MODEL,
 def speak(text: str, elevenlabs_key: str = "") -> None:
     """Speak text using Windows SAPI TTS (free, no API key needed)."""
     try:
-        import re, subprocess
+        import re
+        import subprocess
         clean = re.sub(r'\[.*?\]', '', text)
         clean = re.sub(r'[#*`]', '', clean).strip()
         if not clean:

@@ -20,11 +20,10 @@ from typing import Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from llm_providers import resolve_provider, get_client, default_model_for
-from storage import write_memory, search_memory, get_recent_memory
+from storage import write_memory, search_memory
 
 from wellness.engine import WellnessEngine, EngineResult
 from wellness.interventions import INTERVENTIONS, Intervention
-from wellness.protocols import Protocol
 from wellness.prompts import WIZARD_SYSTEM, PromptBuilder
 
 
@@ -413,26 +412,26 @@ class Wizard:
     # ─── Helpers ──────────────────────────────────────────────────────
 
     def _history_summary(self, state: str = None) -> str:
-        """Build history summary from Hermes memory (storage.py)."""
+        """Real history only, with an explicit guard against invented memories."""
         try:
             parts = []
             if state:
                 results = search_memory(f"mood {state}", limit=5)
                 if results:
-                    parts.append(f"Logged '{state}' {len(results)} time(s) recently.")
-
+                    parts.append(f"they have logged '{state}' {len(results)} time(s) recently")
             interventions = search_memory("intervention", limit=5)
-            if interventions:
-                names = [e.get("intervention_name", "?") for e in interventions]
-                parts.append(f"Recent interventions: {', '.join(names)}.")
-
+            names = [e.get("intervention_name") for e in interventions if e.get("intervention_name")]
+            if names:
+                parts.append(f"recent interventions: {', '.join(names)}")
             wins = search_memory("win", limit=3)
             if wins:
-                parts.append(f"{len(wins)} win(s) celebrated recently.")
-
-            return " ".join(parts) if parts else ""
+                parts.append(f"{len(wins)} win(s) celebrated recently")
+            if parts:
+                return " ".join(parts) + " Reference ONLY these facts, nothing else."
+            return ("NONE. This is a fresh start. Do NOT mention any past sessions, "
+                    "practices, patterns, or shared history. Speak only to this present moment.")
         except Exception:
-            return ""
+            return "NONE. Do not reference any past events."
 
     def _session_config(self, iv: Optional[Intervention]) -> Optional[dict]:
         if not iv:
@@ -451,9 +450,12 @@ class Wizard:
 
     def _time_of_day(self) -> str:
         hour = datetime.now().hour
-        if 5 <= hour < 12: return "morning"
-        elif 12 <= hour < 17: return "afternoon"
-        elif 17 <= hour < 21: return "evening"
+        if 5 <= hour < 12:
+            return "morning"
+        elif 12 <= hour < 17:
+            return "afternoon"
+        elif 17 <= hour < 21:
+            return "evening"
         return "night"
 
     def status(self) -> dict:

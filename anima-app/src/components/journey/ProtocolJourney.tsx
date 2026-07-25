@@ -18,18 +18,19 @@ type StepStatus = 'done' | 'active' | 'todo';
 
 /** Fallback: reveals pre-written words a little at a time. */
 function Spoken({ text }: { text: string }) {
-  const words = text.split(' ');
   const [count, setCount] = useState(0);
   useEffect(() => {
+    const total = text.split(' ').length;
     setCount(0);
     const iv = setInterval(() => {
       setCount((c) => {
-        if (c >= words.length) { clearInterval(iv); return c; }
+        if (c >= total) { clearInterval(iv); return c; }
         return c + 1;
       });
     }, 45);
     return () => clearInterval(iv);
   }, [text]);
+  const words = text.split(' ');
   return (
     <span>
       {words.slice(0, count).join(' ')}
