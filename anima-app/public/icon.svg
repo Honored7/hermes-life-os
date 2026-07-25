@@ -15,13 +15,16 @@
     </radialGradient>
   </defs>
   <rect width="512" height="512" rx="115" fill="url(#bg)"/>
-  <g transform="translate(256 256)" fill="none" stroke="url(#g)" stroke-linecap="round">
-    <circle r="150" stroke-width="18" stroke-dasharray="735 207"/>
-    <circle r="150" stroke-width="0"/>
-    <circle cx="150" cy="0" r="6" fill="#FFF4DC" stroke="none"/>
-    <g transform="rotate(120)"><circle r="100" stroke-width="14" stroke-dasharray="490 138"/></g>
-    <g transform="rotate(240)"><circle r="54" stroke-width="12" stroke-dasharray="264 75"/></g>
+  <g fill="none" stroke="url(#g)" stroke-linecap="round">
+    <circle cx="256" cy="256" r="130" stroke-width="17" stroke-opacity="0.9"
+            pathLength="100" stroke-dasharray="78 22"/>
+    <circle cx="386" cy="256" r="10" fill="#FFF4DC" stroke="none"
+            transform="rotate(280.8 256 256)"/>
+    <circle cx="256" cy="256" r="88" stroke-width="14" stroke-opacity="0.85"
+            pathLength="100" stroke-dasharray="78 22" transform="rotate(120 256 256)"/>
+    <circle cx="256" cy="256" r="48" stroke-width="11" stroke-opacity="1"
+            pathLength="100" stroke-dasharray="78 22" transform="rotate(240 256 256)"/>
   </g>
-  <circle cx="256" cy="256" r="46" fill="url(#gl)"/>
-  <circle cx="256" cy="256" r="9" fill="#FFF4DC"/>
+  <circle cx="256" cy="256" r="40" fill="url(#gl)" opacity="0.55"/>
+  <circle cx="256" cy="256" r="8" fill="#FFF4DC"/>
 </svg>

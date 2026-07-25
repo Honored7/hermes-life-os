@@ -174,7 +174,7 @@ export function Today() {
             {!meta?.protocol && (
               <div className="flex gap-3">
                 <div className="mt-1 shrink-0">
-                  <MotifMark size={26} breathing={phase === 'listening'} />
+                  <MotifMark size={26} />
                 </div>
                 <div className="min-w-0">
                   {phase === 'listening' && !wizardMsg ? (

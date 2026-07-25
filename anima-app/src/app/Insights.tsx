@@ -4,6 +4,31 @@ import { TrendUp, Trophy } from '@phosphor-icons/react';
 import { getInsights, streamReflection } from '../lib/api';
 import { MotifMark } from '../components/brand/MotifMark';
 
+const CACHE_KEY = 'motif-reflection';
+
+function todayStr(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+interface CachedReflection { signature: string; day: string; text: string; }
+
+function loadCache(): CachedReflection | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (p && typeof p.text === 'string' && p.signature && p.day) return p as CachedReflection;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveCache(c: CachedReflection) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch { /* ignore */ }
+}
+
 function Cursor() {
   return (
     <motion.span
@@ -43,26 +68,52 @@ export function Insights() {
   const [reflecting, setReflecting] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const reflect = () => {
-    // Cancel any in-flight reflection (also kills the StrictMode duplicate)
+  /**
+   * Generate a fresh reflection and cache it on clean completion.
+   * Each call owns its abort signal + accumulator, so an aborted stream
+   * (e.g. navigating away) never saves a half-finished sentence.
+   */
+  const reflect = (signature: string) => {
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
+    const signal = controller.signal;
+    let pending = '';
+    const day = todayStr();
     setReflecting(true);
     setReflection('');
     streamReflection(
-      (t) => setReflection((prev) => prev + t),
-      () => setReflecting(false),
-      controller.signal,
-    ).catch(() => {
-      if (!controller.signal.aborted) setReflecting(false);
-    });
+      (t) => { if (signal.aborted) return; pending += t; setReflection(pending); },
+      () => {
+        if (signal.aborted) return;          // torn down → don't finalise or cache
+        setReflecting(false);
+        if (pending.trim()) saveCache({ signature, day, text: pending });
+      },
+      signal,
+    ).catch(() => { if (!signal.aborted) setReflecting(false); });
   };
 
   useEffect(() => {
-    getInsights().then(setData).catch(() => {});
-    reflect();
-    return () => controllerRef.current?.abort();
+    let cancelled = false;
+    getInsights()
+      .then((d) => {
+        if (cancelled) return;
+        setData(d);
+        const sig = d?.signature ?? '';
+        const day = todayStr();
+        const cached = loadCache();
+        // Cache hit → instant, no LLM. Miss (new data or new day) → generate once.
+        if (cached && cached.signature === sig && cached.day === day && cached.text) {
+          setReflection(cached.text);
+        } else {
+          reflect(sig);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      controllerRef.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -81,7 +132,7 @@ export function Insights() {
 
         <div className="rounded-card border border-lantern/25 bg-surface p-5 shadow-[0_0_30px_rgba(245,184,65,0.06)]">
           <div className="flex items-center gap-2.5">
-            <MotifMark size={24} breathing={reflecting} />
+            <MotifMark size={24} />
             <span className="font-wizard text-lg">The wizard reflects</span>
           </div>
           <div className="mt-3 text-[16px] leading-relaxed">
@@ -97,11 +148,11 @@ export function Insights() {
             )}
           </div>
           <button
-            onClick={reflect}
+            onClick={() => reflect(data?.signature ?? '')}
             disabled={reflecting}
             className="mt-4 rounded-full border border-line px-5 py-2 text-sm text-muted transition-colors hover:border-lantern/50 hover:text-lantern disabled:opacity-50"
           >
-            {reflecting ? 'Reflecting\u2026' : 'Reflect again'}
+            {reflecting ? 'Reflecting…' : 'Reflect again'}
           </button>
         </div>
 
@@ -117,7 +168,7 @@ export function Insights() {
                     <p className="text-sm font-medium">{iv.name}</p>
                     {iv.avg_improvement != null && iv.avg_improvement > 0 && (
                       <span className="shrink-0 text-sm text-sage">
-                        {'\u2193'} {iv.avg_improvement} pts
+                        {'↓'} {iv.avg_improvement} pts
                       </span>
                     )}
                   </div>

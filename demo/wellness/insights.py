@@ -103,5 +103,23 @@ Speak directly to them in your warm, wise voice. Name one or two things you noti
     yield {"type": "done"}
 
 
+def _recent_signature() -> str:
+    """Cheap fingerprint of the last 7 days; changes whenever new data lands."""
+    entries = get_recent_memory(days=7)
+
+    def n(t):
+        return sum(1 for e in entries if e.get("type") == t)
+
+    last_ts = entries[-1].get("timestamp", "") if entries else ""
+    return (
+        f"{n('mood')}|{n('intervention')}|{n('win')}|"
+        f"{n('sleep')}|{n('hydration')}|{last_ts}"
+    )
+
+
 def get_insights_summary() -> dict:
-    return {"wins": get_wins(), "effective": get_effective_interventions()}
+    return {
+        "wins": get_wins(),
+        "effective": get_effective_interventions(),
+        "signature": _recent_signature(),
+    }

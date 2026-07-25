@@ -93,10 +93,7 @@ export function Companion() {
       {/* The wizard's presence */}
       <div className="relative flex items-center gap-3 pb-4 pt-2">
         <div className="relative">
-          <MotifMark size={40} breathing />
-          {isStreaming && (
-            <span className="absolute inset-0 -z-10 animate-glow rounded-full bg-lantern/20 blur-xl" />
-          )}
+          <MotifMark size={40} />
         </div>
         <div>
           <p className="font-wizard text-lg leading-tight">The Wizard</p>
@@ -186,7 +183,7 @@ function WizardBubble({ msg }: { msg: Message }) {
       className="flex gap-3"
     >
       <div className="mt-1 shrink-0">
-        <MotifMark size={26} breathing={!!msg.streaming} />
+        <MotifMark size={26} />
       </div>
       <div className="min-w-0">
         {waiting ? (

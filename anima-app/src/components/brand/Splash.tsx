@@ -25,7 +25,7 @@ export function Splash() {
           }}
         >
           <div className="flex flex-col items-center gap-6">
-            <MotifMark size={116} spin={!reduce} spinSpeed={14} />
+            <MotifMark size={116} />
             <motion.p
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}

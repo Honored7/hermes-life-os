@@ -31,7 +31,7 @@ export function AppShell() {
     <div className="mx-auto flex h-[100dvh] max-w-md flex-col bg-bg text-ink">
       <header className="flex items-center justify-between px-5 pb-3 pt-6">
         <div className="flex items-center gap-2.5">
-          <MotifMark size={30} breathing />
+          <MotifMark size={30} />
           <span className="font-wizard text-xl tracking-tight">Motif</span>
         </div>
         <ThemeToggle />
@@ -69,7 +69,7 @@ export function AppShell() {
 function ScreenPlaceholder({ name }: { name: TabId }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-      <MotifMark size={56} breathing />
+      <MotifMark size={56} />
       <p className="font-wizard text-2xl capitalize">{name}</p>
       <p className="max-w-xs text-sm leading-relaxed text-muted">
         This is where the {name} experience will live. We build it next.
