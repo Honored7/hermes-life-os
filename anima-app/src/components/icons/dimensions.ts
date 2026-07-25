@@ -2,12 +2,19 @@ import {
   Leaf, MoonStars, Drop, Barbell, FlowerLotus,
   Crosshair, CheckCircle, FlagBanner, Smiley,
 } from '@phosphor-icons/react';
-import type { ComponentType } from 'react';
+import type { CSSProperties, ComponentType } from 'react';
 
+/**
+ * Alias for a Phosphor icon component. Describes the full prop surface we
+ * actually use (size, weight, className, and per-state color via style/color)
+ * so the mood + dimension grids type-check under `tsc`.
+ */
 export type IconComponent = ComponentType<{
   size?: number | string;
   weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone';
   className?: string;
+  color?: string;
+  style?: CSSProperties;
 }>;
 
 export type DimensionId =

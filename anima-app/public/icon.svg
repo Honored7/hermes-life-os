@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#232347"/>
+      <stop offset="100%" stop-color="#0E0E22"/>
+    </linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EAD6A6"/>
+      <stop offset="55%" stop-color="#D9A441"/>
+      <stop offset="100%" stop-color="#A9742A"/>
+    </linearGradient>
+    <radialGradient id="gl">
+      <stop offset="0%" stop-color="#EAD6A6" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#EAD6A6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#bg)"/>
+  <g transform="translate(256 256)" fill="none" stroke="url(#g)" stroke-linecap="round">
+    <circle r="150" stroke-width="18" stroke-dasharray="735 207"/>
+    <circle r="150" stroke-width="0"/>
+    <circle cx="150" cy="0" r="6" fill="#FFF4DC" stroke="none"/>
+    <g transform="rotate(120)"><circle r="100" stroke-width="14" stroke-dasharray="490 138"/></g>
+    <g transform="rotate(240)"><circle r="54" stroke-width="12" stroke-dasharray="264 75"/></g>
+  </g>
+  <circle cx="256" cy="256" r="46" fill="url(#gl)"/>
+  <circle cx="256" cy="256" r="9" fill="#FFF4DC"/>
+</svg>

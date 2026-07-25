@@ -38,21 +38,30 @@
   0%, 100% { opacity: 0.5; }
   50%      { opacity: 1; }
 }
+@keyframes motif-cw  { to { transform: rotate(360deg); } }
+@keyframes motif-ccw { to { transform: rotate(-360deg); } }
 
+/* ── DARK (default) — deep indigo, slate, warm amber ── */
 :root, [data-theme="dark"] {
-  --bg: #16172A;
-  --surface: #232440;
-  --surface-2: #2F3155;
-  --ink: #F7F3EC;
-  --muted: #A9AAC4;
-  --faint: #6C6E8E;
-  --line: #33355A;
-  --lantern: #F5B841;
-  --ember: #E89B2E;
-  --sage: #7FB5A0;
+  --bg: #13132B;
+  --surface: #1D1D3A;
+  --surface-2: #282849;
+  --ink: #F3F0E9;
+  --muted: #A4A6C2;
+  --faint: #696B90;
+  --line: #34345C;
+  --lantern: #E0A23A;
+  --ember: #C9842A;
+  --sage: #7FAE98;
   --teal: #5A9B9B;
-  --mood-joy: #F5B841;
-  --mood-calm: #7FB5A0;
+  --amber-light: #EAD6A6;
+  --amber-deep: #A9742A;
+  --amber-glow: rgba(224, 162, 58, 0.45);
+  --comet: #FFF4DC;
+  --bg-grad: radial-gradient(125% 85% at 50% -10%, #1E1E3D 0%, #13132B 48%, #0D0D20 100%);
+
+  --mood-joy: #E0A23A;
+  --mood-calm: #7FAE98;
   --mood-stressed: #E0A458;
   --mood-anxious: #9B8BC4;
   --mood-sad: #7A9CC6;
@@ -61,19 +70,26 @@
   --mood-lonely: #C4909B;
 }
 
+/* ── LIGHT — off-white paper, indigo ink ── */
 [data-theme="light"] {
-  --bg: #F7F3EC;
+  --bg: #F5F2EB;
   --surface: #FFFFFF;
-  --surface-2: #EFEAE1;
-  --ink: #232440;
-  --muted: #5C5E78;
-  --faint: #9496AB;
-  --line: #E5DFD4;
-  --lantern: #D9942A;
-  --ember: #C07F1F;
+  --surface-2: #ECE7DC;
+  --ink: #1E1E3D;
+  --muted: #585A76;
+  --faint: #9294AC;
+  --line: #E2DCD0;
+  --lantern: #B97E22;
+  --ember: #9C6A1E;
   --sage: #5E9C86;
   --teal: #478282;
-  --mood-joy: #D9942A;
+  --amber-light: #D9A441;
+  --amber-deep: #8C5E16;
+  --amber-glow: rgba(185, 126, 34, 0.35);
+  --comet: #7A5412;
+  --bg-grad: radial-gradient(125% 85% at 50% -10%, #FFFFFF 0%, #F5F2EB 52%, #EAE4D8 100%);
+
+  --mood-joy: #B97E22;
   --mood-calm: #5E9C86;
   --mood-stressed: #C58A3E;
   --mood-anxious: #8271AB;
@@ -87,11 +103,12 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--bg-grad);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
-  transition: background 0.4s ease, color 0.4s ease;
+  transition: color 0.4s ease;
 }
 
 /* ── Mood slider ─────────────────────────────────────── */

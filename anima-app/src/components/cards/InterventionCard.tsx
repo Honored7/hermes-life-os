@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { LanternLogo } from '../brand/LanternLogo';
+import { MotifMark } from '../brand/MotifMark';
 
 interface Props {
   intervention: any;
@@ -19,7 +19,7 @@ export function InterventionCard({ intervention, sessionConfig, onBegin }: Props
       className="rounded-card border border-lantern/25 bg-surface p-5 shadow-[0_0_30px_rgba(245,184,65,0.07)]"
     >
       <div className="flex items-center gap-2.5">
-        <LanternLogo size={22} />
+        <MotifMark size={22} />
         <h3 className="font-wizard text-lg leading-tight">{intervention.name}</h3>
       </div>
       <p className="mt-1 text-xs text-faint">{intervention.family} · {minutes} min</p>

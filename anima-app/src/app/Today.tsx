@@ -9,7 +9,7 @@ import { streamCheckIn } from '../lib/api';
 import { InterventionCard } from '../components/cards/InterventionCard';
 import { ProtocolJourney } from '../components/journey/ProtocolJourney';
 import { BreathingSession } from '../components/session/BreathingSession';
-import { LanternLogo } from '../components/brand/LanternLogo';
+import { MotifMark } from '../components/brand/MotifMark';
 
 interface Mood {
   state: string;
@@ -174,7 +174,7 @@ export function Today() {
             {!meta?.protocol && (
               <div className="flex gap-3">
                 <div className="mt-1 shrink-0">
-                  <LanternLogo size={26} breathing={phase === 'listening'} />
+                  <MotifMark size={26} breathing={phase === 'listening'} />
                 </div>
                 <div className="min-w-0">
                   {phase === 'listening' && !wizardMsg ? (

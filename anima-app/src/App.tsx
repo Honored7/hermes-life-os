@@ -1,5 +1,11 @@
 import { AppShell } from './app/AppShell';
+import { Splash } from './components/brand/Splash';
 
 export function App() {
-  return <AppShell />;
+  return (
+    <>
+      <Splash />
+      <AppShell />
+    </>
+  );
 }

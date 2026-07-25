@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 /**
  * Shared Server-Sent-Events reader. Every wizard stream in the app funnels

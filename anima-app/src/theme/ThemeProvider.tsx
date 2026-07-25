@@ -16,7 +16,7 @@ const ThemeContext = createContext<ThemeCtx>({
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem('anima-theme') as Theme) || 'dark',
+    () => (localStorage.getItem('motif-theme') as Theme) || 'dark',
   );
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -34,7 +34,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', resolved);
-    localStorage.setItem('anima-theme', theme);
+    localStorage.setItem('motif-theme', theme);
   }, [theme, resolved]);
 
   return (

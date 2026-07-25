@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { TrendUp, Trophy } from '@phosphor-icons/react';
 import { getInsights, streamReflection } from '../lib/api';
-import { LanternLogo } from '../components/brand/LanternLogo';
+import { MotifMark } from '../components/brand/MotifMark';
 
 function Cursor() {
   return (
@@ -81,7 +81,7 @@ export function Insights() {
 
         <div className="rounded-card border border-lantern/25 bg-surface p-5 shadow-[0_0_30px_rgba(245,184,65,0.06)]">
           <div className="flex items-center gap-2.5">
-            <LanternLogo size={24} breathing={reflecting} />
+            <MotifMark size={24} breathing={reflecting} />
             <span className="font-wizard text-lg">The wizard reflects</span>
           </div>
           <div className="mt-3 text-[16px] leading-relaxed">
