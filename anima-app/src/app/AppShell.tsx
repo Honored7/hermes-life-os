@@ -6,6 +6,8 @@ import { LanternLogo } from '../components/brand/LanternLogo';
 import { ThemeToggle } from '../components/brand/ThemeToggle';
 import { Today } from './Today';
 import { Companion } from './Companion';
+import { Life } from './Life';
+import { Insights } from './Insights';
 import type { IconComponent } from '../components/icons/dimensions';
 
 type TabId = 'today' | 'companion' | 'life' | 'insights' | 'you';
@@ -17,6 +19,10 @@ const TABS: { id: TabId; label: string; icon: IconComponent }[] = [
   { id: 'insights', label: 'Insights', icon: Sparkle },
   { id: 'you', label: 'You', icon: UserCircle },
 ];
+
+const SCREENS: Record<TabId, boolean> = {
+  today: true, companion: true, life: true, insights: true, you: false,
+};
 
 export function AppShell() {
   const [active, setActive] = useState<TabId>('today');
@@ -34,7 +40,9 @@ export function AppShell() {
       <main className="flex-1 overflow-hidden px-5">
         {active === 'today' && <Today />}
         {active === 'companion' && <Companion />}
-        {active !== 'today' && active !== 'companion' && <ScreenPlaceholder name={active} />}
+        {active === 'life' && <Life onCheckIn={() => setActive('today')} />}
+        {active === 'insights' && <Insights />}
+        {!SCREENS[active] && <ScreenPlaceholder name={active} />}
       </main>
 
       <nav className="flex items-center justify-around border-t border-line bg-surface px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">

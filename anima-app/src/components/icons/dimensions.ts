@@ -1,5 +1,5 @@
 import {
-  Leaf, MoonStars, Drop, Barbell, Lotus,
+  Leaf, MoonStars, Drop, Barbell, FlowerLotus,
   Crosshair, CheckCircle, FlagBanner, Smiley,
 } from '@phosphor-icons/react';
 import type { ComponentType } from 'react';
@@ -19,7 +19,7 @@ export const DIMENSION_ICONS: Record<DimensionId, IconComponent> = {
   sleep: MoonStars,
   hydration: Drop,
   fitness: Barbell,
-  mental: Lotus,
+  mental: FlowerLotus,
   focus: Crosshair,
   habits: CheckCircle,
   goals: FlagBanner,

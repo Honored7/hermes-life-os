@@ -230,3 +230,48 @@ async def wizard_narrate_stream(req: NarrateRequest):
             yield f"data: {json_mod.dumps(event)}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ─── Life — the nine dimensions ──────────────────────────────────────
+class LifeLogRequest(BaseModel):
+    dimension: str
+    glasses: Optional[int] = None
+    hours: Optional[float] = None
+    quality: Optional[int] = None
+    note: str = ""
+
+
+@router.get("/life/today")
+async def life_today():
+    """Today's picture across the dimensions."""
+    from wellness.life import get_today_summary
+    return get_today_summary()
+
+
+@router.post("/life/log")
+async def life_log(req: LifeLogRequest):
+    """Log something toward a dimension."""
+    from wellness.life import add_water, log_sleep, log_generic
+    if req.dimension == "hydration":
+        return add_water(req.glasses or 1)
+    if req.dimension == "sleep":
+        return log_sleep(req.hours or 0, req.quality or 5)
+    return log_generic(req.dimension, req.note)
+
+
+# ─── Insights — the wizard reflects ──────────────────────────────────
+@router.get("/insights")
+async def insights():
+    from wellness.insights import get_insights_summary
+    return get_insights_summary()
+
+
+@router.post("/insights/reflect/stream")
+async def insights_reflect_stream():
+    from wellness.insights import reflect_stream
+
+    def generate():
+        for event in reflect_stream(_wizard):
+            yield f"data: {json_mod.dumps(event)}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")

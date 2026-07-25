@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.request
+
+from storage import write_memory
 
 from wellness.interventions import INTERVENTIONS
 from wellness.prompts import WIZARD_SYSTEM
@@ -88,6 +91,13 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
 
     result = wizard.engine.recommend(state=state, severity=severity, context=context)
     history = _safe_history(wizard, state)
+
+    # Remember the check-in so reflections and trends have mood data
+    try:
+        write_memory({"type": "mood", "state": state, "severity": severity,
+                      "note": user_message, "date": time.strftime("%Y-%m-%d")})
+    except Exception:
+        pass
 
     meta = {"intervention": None, "protocol": None, "session_config": None, "alternatives": []}
     prompt = None
