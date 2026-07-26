@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   SunHorizon, ChatTeardrop, Plant, Sparkle, UserCircle,
 } from '@phosphor-icons/react';
 import { MotifMark } from '../components/brand/MotifMark';
 import { ThemeToggle } from '../components/brand/ThemeToggle';
-import { Today } from './Today';
-import { Companion } from './Companion';
-import { Life } from './Life';
-import { Insights } from './Insights';
-import { You } from './You';
 import type { IconComponent } from '../components/icons/dimensions';
+
+// Each tab loads on first visit — the shell + Today ship first, the rest
+// follow lazily, so the installed app opens fast and the bundle stays lean.
+const Today = lazy(() => import('./Today').then((m) => ({ default: m.Today })));
+const Companion = lazy(() => import('./Companion').then((m) => ({ default: m.Companion })));
+const Life = lazy(() => import('./Life').then((m) => ({ default: m.Life })));
+const Insights = lazy(() => import('./Insights').then((m) => ({ default: m.Insights })));
+const You = lazy(() => import('./You').then((m) => ({ default: m.You })));
 
 type TabId = 'today' | 'companion' | 'life' | 'insights' | 'you';
 
@@ -21,9 +24,13 @@ const TABS: { id: TabId; label: string; icon: IconComponent }[] = [
   { id: 'you', label: 'You', icon: UserCircle },
 ];
 
-const SCREENS: Record<TabId, boolean> = {
-  today: true, companion: true, life: true, insights: true, you: true,
-};
+function TabFallback() {
+  return (
+    <div className="grid h-full place-items-center">
+      <MotifMark size={56} />
+    </div>
+  );
+}
 
 export function AppShell() {
   const [active, setActive] = useState<TabId>('today');
@@ -49,12 +56,13 @@ export function AppShell() {
       </header>
 
       <main className="flex-1 overflow-hidden px-5">
-        {active === 'today' && <Today />}
-        {active === 'companion' && <Companion />}
-        {active === 'life' && <Life onCheckIn={() => setActive('today')} />}
-        {active === 'insights' && <Insights />}
-        {active === 'you' && <You initialNotice={notice} />}
-        {!SCREENS[active] && <ScreenPlaceholder name={active} />}
+        <Suspense fallback={<TabFallback />}>
+          {active === 'today' && <Today />}
+          {active === 'companion' && <Companion />}
+          {active === 'life' && <Life onCheckIn={() => setActive('today')} />}
+          {active === 'insights' && <Insights />}
+          {active === 'you' && <You initialNotice={notice} />}
+        </Suspense>
       </main>
 
       <nav className="flex items-center justify-around border-t border-line bg-surface px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -74,18 +82,6 @@ export function AppShell() {
           );
         })}
       </nav>
-    </div>
-  );
-}
-
-function ScreenPlaceholder({ name }: { name: TabId }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-      <MotifMark size={56} />
-      <p className="font-wizard text-2xl capitalize">{name}</p>
-      <p className="max-w-xs text-sm leading-relaxed text-muted">
-        This is where the {name} experience will live. We build it next.
-      </p>
     </div>
   );
 }

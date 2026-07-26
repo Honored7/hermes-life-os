@@ -81,6 +81,19 @@ def _recent_summary() -> str:
             + (f" (e.g. {last})" if last else "")
             + "."
         )
+    try:
+        from wellness.vitals import sleep_summary as _ss, detect_sleep_mood_pattern as _pat
+        _s = _ss()
+        if _s["count"]:
+            note = "Sleep: they have logged " + str(_s["count"]) + " night(s); recent average " + str(_s["avg_hours"]) + "h"
+            if _s["poor_streak"] >= 2:
+                note += "; " + str(_s["poor_streak"]) + " short night(s) in a row"
+            lines.append(note + ".")
+            _p = _pat()
+            if _p:
+                lines.append("Pattern noticed: " + _p)
+    except Exception:
+        pass
     return "\n".join(lines) if lines else "Very little shared yet."
 
 

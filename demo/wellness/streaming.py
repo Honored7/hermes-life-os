@@ -97,6 +97,11 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
 
     result = wizard.engine.recommend(state=state, severity=severity, context=context)
     history = _safe_history(wizard, state) + _upcoming_note()
+    try:
+        from wellness.vitals import vitals_note as _vitals_note
+        history = history + _vitals_note()
+    except Exception:
+        pass
 
     # Remember the check-in so reflections and trends have mood data
     try:

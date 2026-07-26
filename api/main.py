@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 
 from api.routes import router
 from api.integrations_routes import router as integrations_router
+from api.wellness_routes import router as wellness_router
 from wellness.interventions import INTERVENTIONS
 from wellness.protocols import PROTOCOLS
 
@@ -42,6 +43,7 @@ app.add_middleware(
 
 app.include_router(router, prefix="/api/v1", tags=["wizard"])
 app.include_router(integrations_router, prefix="/api/v1/integrations", tags=["integrations"])
+app.include_router(wellness_router, prefix="/api/v1", tags=["wellness"])
 
 
 @app.get("/api/v1/info")

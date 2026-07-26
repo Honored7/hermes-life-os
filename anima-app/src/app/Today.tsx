@@ -3,10 +3,11 @@ import type { CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Smiley, Waves, Lightning, Wind, CloudRain, Fire, BatteryLow, HeartHalf,
-  CalendarBlank, Check, ArrowSquareOut,
+  CalendarBlank, Check, ArrowSquareOut, Sparkle,
 } from '@phosphor-icons/react';
 import type { IconComponent } from '../components/icons/dimensions';
 import { streamCheckIn, getCalendarEvents, logLife } from '../lib/api';
+import { presentation, toneOf } from '../lib/eventTone';
 import { InterventionCard } from '../components/cards/InterventionCard';
 import { ProtocolJourney } from '../components/journey/ProtocolJourney';
 import { BreathingSession } from '../components/session/BreathingSession';
@@ -26,9 +27,6 @@ const MOODS: Mood[] = [
   { state: 'low_energy', label: 'Drained', icon: BatteryLow, color: 'var(--mood-low)' },
   { state: 'lonely', label: 'Lonely', icon: HeartHalf, color: 'var(--mood-lonely)' },
 ];
-
-const STRESS_HINTS = ['presentation', 'deadline', 'interview', 'review', 'demo', 'exam', 'pitch', 'defense', 'defence', 'performance', 'hearing'];
-const isStressfulTitle = (t: string) => STRESS_HINTS.some((h) => (t || '').toLowerCase().includes(h));
 
 const PATTERNS: Record<'unwind' | 'box', any> = {
   unwind: { inhale: 4, hold_in: 2, exhale: 6, hold_out: 0, cycles: 5 },
@@ -78,6 +76,13 @@ const savePrepared = (o: Record<string, true>) => {
   try { localStorage.setItem(todayKey(), JSON.stringify(Object.keys(o))); } catch { /* ignore */ }
 };
 
+const CTA_LABEL: Record<string, string> = {
+  emphasised: 'Steady yourself before this',
+  'gentle-stress': "Prepare when you're ready",
+  gentle: 'A moment to centre first',
+  done: 'Centred · centre again',
+};
+
 export function Today() {
   const [mood, setMood] = useState<Mood | null>(null);
   const [severity, setSeverity] = useState(5);
@@ -95,14 +100,19 @@ export function Today() {
   const [prepareMode, setPrepareMode] = useState<PrepareMode>(null);
 
   const accent = mood ? mood.color : 'var(--lantern)';
+  const nowMs = Date.now();
 
   // drop anything that has already ended (the cache can lag a few minutes)
-  const live = events.filter((e) => new Date(e.end_iso).getTime() > Date.now() - 60000);
+  const live = events.filter((e) => new Date(e.end_iso).getTime() > nowMs - 60000);
   const imminent = live[0] || null;
   const isPrepared = (ev: CalEvent) => !!prepared[prepKey(ev)];
-  const minutesTo = imminent ? (new Date(imminent.start_iso).getTime() - Date.now()) / 60000 : Infinity;
-  const emphasised = !!imminent && !isPrepared(imminent) && (isStressfulTitle(imminent.title) || minutesTo <= 90);
-  const moreUnprepared = imminent ? live.slice(1).filter((e) => !isPrepared(e)).length : 0;
+  const ctaOf = (ev: CalEvent) =>
+    presentation({ title: ev.title, startMs: new Date(ev.start_iso).getTime(), nowMs, prepared: isPrepared(ev) });
+
+  const topCta = imminent ? ctaOf(imminent) : 'none';
+  const moreAwaiting = imminent
+    ? live.slice(1).filter((e) => !isPrepared(e) && toneOf(e.title) !== 'rest').length
+    : 0;
 
   const hour = new Date().getHours();
   const greeting =
@@ -163,7 +173,6 @@ export function Today() {
       return n;
     });
     logLife({ dimension: 'preparation', note: `${methodLabel} before ${t.title}` }).catch(() => {});
-    // the reward: the big card steps aside into a quiet line
     if (t === imminent) setCardOpen(false);
   };
 
@@ -204,6 +213,17 @@ export function Today() {
     );
   }
 
+  const topEdge =
+    topCta === 'emphasised' ? 'var(--lantern)' :
+    topCta === 'done' ? 'var(--sage)' :
+    topCta === 'rest' ? 'color-mix(in srgb, var(--lantern) 55%, var(--line))' :
+    'var(--line)';
+  const topLabel =
+    topCta === 'emphasised' ? 'coming up — a big one' :
+    topCta === 'rest' ? 'yours today' :
+    topCta === 'done' ? 'centred' :
+    'on your horizon';
+
   return (
     <div className="relative h-full overflow-y-auto">
       <motion.div
@@ -218,7 +238,7 @@ export function Today() {
           <p className="mt-1 text-sm text-muted">How are you arriving right now?</p>
         </div>
 
-        {/* ── the horizon: a stackable, settle-able window onto your day ── */}
+        {/* ── the horizon: tone-aware, stackable, settle-able ── */}
         {imminent && (
           <AnimatePresence mode="wait">
             {cardOpen ? (
@@ -231,15 +251,11 @@ export function Today() {
                 transition={{ type: 'spring', stiffness: 300, damping: 26 }}
                 className="relative overflow-hidden rounded-card border border-line bg-surface p-4"
               >
-                <span className="absolute inset-y-0 left-0 w-1 transition-colors duration-500"
-                  style={{ background: emphasised ? 'var(--lantern)' : isPrepared(imminent) ? 'var(--sage)' : 'var(--line)' }} />
+                <span className="absolute inset-y-0 left-0 w-1 transition-colors duration-500" style={{ background: topEdge }} />
                 <div className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-lantern/10 blur-2xl" />
 
-                {/* header: mood label + depth chip */}
                 <div className="mb-3 flex items-center justify-between">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-faint">
-                    {emphasised ? 'coming up — a big one' : 'on your horizon'}
-                  </p>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-faint">{topLabel}</p>
                   {live.length > 1 && (
                     <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-medium text-faint">
                       {live.length} today
@@ -247,23 +263,32 @@ export function Today() {
                   )}
                 </div>
 
-                {/* the stack — scrolls only when it overflows; the cut row + chip say "more" */}
                 <div className="no-scrollbar max-h-[212px] space-y-2 overflow-y-auto overscroll-contain pr-0.5">
                   {live.map((ev, i) => {
-                    const top = i === 0;
                     const done = isPrepared(ev);
-                    const evEmph = top && emphasised;
-                    const mins = (new Date(ev.start_iso).getTime() - Date.now()) / 60000;
+                    const top = i === 0;
 
                     if (top) {
-                      // ── the imminent event, drawn large ──
+                      const cta = topCta;
+                      const Glyph = cta === 'rest' ? Sparkle : CalendarBlank;
+                      const glyphColor = cta === 'rest' || cta === 'done' ? 'var(--sage)' : 'var(--lantern)';
+                      const glyphBg = cta === 'rest' || cta === 'done'
+                        ? 'color-mix(in srgb, var(--sage) 14%, transparent)'
+                        : 'color-mix(in srgb, var(--lantern) 12%, transparent)';
+                      const btnClass =
+                        cta === 'emphasised'
+                          ? 'bg-lantern text-bg hover:bg-ember hover:shadow-[0_0_20px_rgba(224,162,58,0.4)]'
+                          : cta === 'done'
+                            ? 'border border-sage/40 text-sage hover:bg-sage/10'
+                            : 'border border-line text-muted hover:border-lantern/50 hover:text-lantern';
+                      const BtnIcon = cta === 'done' ? Check : Wind;
+
                       return (
                         <div key={prepKey(ev)} className="rounded-2xl bg-bg/50 p-3.5">
                           <div className="flex items-center gap-3">
-                            <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full"
-                              style={{ backgroundColor: 'color-mix(in srgb, var(--lantern) 12%, transparent)' }}>
-                              <CalendarBlank size={18} weight="light" className="text-lantern" />
-                              {!done && (
+                            <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ backgroundColor: glyphBg }}>
+                              <Glyph size={18} weight="light" style={{ color: glyphColor }} />
+                              {cta === 'emphasised' && (
                                 <motion.span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-lantern"
                                   animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 2.2, repeat: Infinity }} />
                               )}
@@ -275,33 +300,45 @@ export function Today() {
                             <span className="shrink-0 font-wizard text-lg text-muted">{fmtClock(ev.start_iso, ev.all_day)}</span>
                           </div>
 
-                          <button
-                            onClick={() => openSteady(ev)}
-                            className={
-                              'mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium transition-all ' +
-                              (done
-                                ? 'border border-sage/40 text-sage hover:bg-sage/10'
-                                : evEmph
-                                  ? 'bg-lantern text-bg hover:bg-ember hover:shadow-[0_0_20px_rgba(224,162,58,0.4)]'
-                                  : 'border border-line text-muted hover:border-lantern/50 hover:text-lantern')
-                            }
-                          >
-                            {done ? <Check size={16} weight="bold" /> : <Wind size={16} weight="light" />}
-                            {done ? 'Centred · centre again' : evEmph ? 'Steady yourself before this' : 'A moment to centre first'}
-                          </button>
+                          {cta === 'rest' ? (
+                            <div className="mt-3 flex items-center gap-2 rounded-full px-1 py-1 text-[13px] leading-snug text-sage/90">
+                              <Sparkle size={15} weight="fill" className="shrink-0 text-sage/80" />
+                              <span>No need to brace for this one — it’s here to be enjoyed.</span>
+                            </div>
+                          ) : cta === 'none' ? null : (
+                            <button
+                              onClick={() => openSteady(ev)}
+                              className={'mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium transition-all ' + btnClass}
+                            >
+                              <BtnIcon size={16} weight={cta === 'done' ? 'bold' : 'light'} />
+                              {CTA_LABEL[cta]}
+                            </button>
+                          )}
                         </div>
                       );
                     }
 
                     // ── compact rows beneath ──
+                    const rowTone = toneOf(ev.title);
+                    const canPrepare = rowTone !== 'rest';
+                    const RowIcon = done ? Check : rowTone === 'rest' ? Sparkle : Wind;
+                    const rowIconColor = done || rowTone === 'rest' ? 'var(--sage)' : 'var(--faint)';
+
                     return (
                       <motion.div
                         key={prepKey(ev)}
-                        whileHover={{ x: 2 }}
-                        onClick={() => openSteady(ev)}
-                        role="button"
-                        tabIndex={0}
-                        className="group flex cursor-pointer items-center gap-3 rounded-xl border border-line/70 bg-bg/40 px-3 py-2.5 transition-colors hover:border-lantern/40"
+                        whileHover={canPrepare ? { x: 2 } : undefined}
+                        onClick={canPrepare ? () => openSteady(ev) : undefined}
+                        role={canPrepare ? 'button' : undefined}
+                        tabIndex={canPrepare ? 0 : undefined}
+                        className={
+                          'group flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ' +
+                          (canPrepare ? 'cursor-pointer hover:border-lantern/40 ' : '') +
+                          (rowTone === 'rest' ? 'border-sage/25' : 'border-line/70 bg-bg/40')
+                        }
+                        style={rowTone === 'rest'
+                          ? { background: 'color-mix(in srgb, var(--sage) 7%, transparent)' }
+                          : undefined}
                       >
                         <span className="w-[46px] shrink-0 text-right font-wizard text-[13px] text-faint">
                           {fmtClock(ev.start_iso, ev.all_day)}
@@ -310,9 +347,10 @@ export function Today() {
                           <span className="block truncate text-[14px] font-medium leading-tight">{ev.title}</span>
                           {ev.location && <span className="block truncate text-[11px] text-faint">{ev.location}</span>}
                         </span>
-                        {done
-                          ? <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sage/15"><Check size={13} weight="bold" className="text-sage" /></span>
-                          : <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-faint transition-colors group-hover:text-lantern"><Wind size={15} weight="light" /></span>}
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full"
+                          style={done || rowTone === 'rest' ? { backgroundColor: 'color-mix(in srgb, var(--sage) 14%, transparent)' } : undefined}>
+                          <RowIcon size={done ? 13 : 15} weight={done ? 'bold' : rowTone === 'rest' ? 'fill' : 'light'} style={{ color: rowIconColor }} />
+                        </span>
                         {ev.html_link && (
                           <a href={ev.html_link} target="_blank" rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
@@ -321,7 +359,6 @@ export function Today() {
                             <ArrowSquareOut size={15} weight="light" />
                           </a>
                         )}
-                        <span className="sr-only">{mins <= 90 && isStressfulTitle(ev.title) ? 'a big one' : ''}</span>
                       </motion.div>
                     );
                   })}
@@ -348,9 +385,9 @@ export function Today() {
                         {imminent.title} · {fmtClock(imminent.start_iso, imminent.all_day)}
                       </span>
                     </span>
-                    {moreUnprepared > 0 && (
+                    {moreAwaiting > 0 && (
                       <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[10px] font-medium text-faint">
-                        +{moreUnprepared} more
+                        +{moreAwaiting} more
                       </span>
                     )}
                   </button>
