@@ -60,6 +60,31 @@ def _intervention_payload(iv):
     }
 
 
+def _upcoming_note():
+    """If a stressful event is imminent, hand the wizard ONE real fact to acknowledge."""
+    try:
+        from integrations import sync as _sync
+        from integrations.calendar_base import is_stressful, now_utc
+        evs, _ = _sync.get_upcoming(limit=3, ttl=300)
+        now = now_utc()
+        for ev in evs:
+            mins = (ev.start_dt - now).total_seconds() / 60.0
+            if mins <= 90 and is_stressful(ev):
+                h = ev.start_dt.hour
+                m = ev.start_dt.minute
+                h12 = h % 12 or 12
+                when = f"{h12}:{m:02d} {'AM' if h < 12 else 'PM'}"
+                soon = "now" if mins <= 0 else f"in about {int(mins)} minutes"
+                return (
+                    f"\nUpcoming: they have '{ev.title}' at {when} today ({soon}). "
+                    f"You may gently acknowledge it and offer to steady them before it, "
+                    f"but only if it feels natural. Reference ONLY this event; invent nothing else."
+                )
+        return ""
+    except Exception:
+        return ""
+
+
 def respond_stream(wizard, state, severity=5, user_message="", context=None):
     """
     Yields:
@@ -71,7 +96,7 @@ def respond_stream(wizard, state, severity=5, user_message="", context=None):
     context.setdefault("time_of_day", wizard._time_of_day())
 
     result = wizard.engine.recommend(state=state, severity=severity, context=context)
-    history = _safe_history(wizard, state)
+    history = _safe_history(wizard, state) + _upcoming_note()
 
     # Remember the check-in so reflections and trends have mood data
     try:

@@ -9,11 +9,19 @@ interface Props {
   state: string;
   severityBefore: number;
   onClose: () => void;
-  /** When provided (journey step), skip the rating and continue the path. */
+  /** When provided (journey step OR a preparation), skip the severity re-rate. */
   onComplete?: () => void;
+  completeHeading?: string;
+  completeBody?: string;
+  completeLabel?: string;
 }
 
-export function BreathingSession({ config, state, severityBefore, onClose, onComplete }: Props) {
+export function BreathingSession({
+  config, state, severityBefore, onClose, onComplete,
+  completeHeading = 'Well done.',
+  completeBody,
+  completeLabel = 'Continue the journey',
+}: Props) {
   const pattern = config.breathing_pattern;
   const phases = [
     { label: 'Breathe in', seconds: pattern.inhale, scale: 1 },
@@ -30,6 +38,7 @@ export function BreathingSession({ config, state, severityBefore, onClose, onCom
   const [sending, setSending] = useState(false);
 
   const phase = phases[phaseIdx];
+  const bodyText = completeBody ?? `You breathed through ${pattern.cycles} full cycles. The path continues.`;
 
   useEffect(() => {
     if (stage !== 'breathe') return;
@@ -110,13 +119,18 @@ export function BreathingSession({ config, state, severityBefore, onClose, onCom
 
         {stage === 'stepDone' && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
-            <p className="font-wizard text-2xl">Well done.</p>
-            <p className="mt-2 text-sm text-muted">You breathed through {pattern.cycles} full cycles. The path continues.</p>
+            <motion.div
+              className="mx-auto mb-6 h-12 w-12 rounded-full bg-lantern/50 blur-md"
+              animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.9, 0.5] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            />
+            <p className="font-wizard text-2xl">{completeHeading}</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{bodyText}</p>
             <button
               onClick={onComplete}
-              className="mt-8 w-full rounded-full bg-lantern py-3 font-medium text-bg transition-all hover:bg-ember hover:shadow-[0_0_22px_rgba(245,184,65,0.4)]"
+              className="mt-8 w-full rounded-full bg-lantern py-3 font-medium text-bg transition-all hover:bg-ember hover:shadow-[0_0_22px_rgba(224,162,58,0.4)]"
             >
-              Continue the journey
+              {completeLabel}
             </button>
           </motion.div>
         )}
@@ -141,7 +155,7 @@ export function BreathingSession({ config, state, severityBefore, onClose, onCom
               disabled={sending}
               className="mt-6 w-full rounded-full bg-lantern py-3 font-medium text-bg transition-all hover:bg-ember disabled:opacity-50"
             >
-              {sending ? 'Sharing\u2026' : 'Tell the wizard'}
+              {sending ? 'Sharing…' : 'Tell the wizard'}
             </button>
           </motion.div>
         )}

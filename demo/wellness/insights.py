@@ -73,6 +73,14 @@ def _recent_summary() -> str:
     hydration = [e for e in entries if e.get("type") == "hydration"]
     if hydration:
         lines.append(f"Hydration logged {len(hydration)} time(s)")
+    preps = [e for e in entries if e.get("type") == "preparation"]
+    if preps:
+        last = (preps[-1].get("content") or "")[:60]
+        lines.append(
+            f"They steadied themselves before something {len(preps)} time(s) recently"
+            + (f" (e.g. {last})" if last else "")
+            + "."
+        )
     return "\n".join(lines) if lines else "Very little shared yet."
 
 

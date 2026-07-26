@@ -1,22 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Smiley, Waves, Lightning, Wind, CloudRain, Fire, BatteryLow, HeartHalf,
+  CalendarBlank,
 } from '@phosphor-icons/react';
 import type { IconComponent } from '../components/icons/dimensions';
-import { streamCheckIn } from '../lib/api';
+import { streamCheckIn, getCalendarEvents, logLife } from '../lib/api';
 import { InterventionCard } from '../components/cards/InterventionCard';
 import { ProtocolJourney } from '../components/journey/ProtocolJourney';
 import { BreathingSession } from '../components/session/BreathingSession';
+import { SteadySheet, type SteadyMethod } from '../components/session/SteadySheet';
+import { PreparationRitual } from '../components/session/PreparationRitual';
 import { MotifMark } from '../components/brand/MotifMark';
 
-interface Mood {
-  state: string;
-  label: string;
-  icon: IconComponent;
-  color: string;
-}
+interface Mood { state: string; label: string; icon: IconComponent; color: string; }
 
 const MOODS: Mood[] = [
   { state: 'good', label: 'Joyful', icon: Smiley, color: 'var(--mood-joy)' },
@@ -29,7 +27,27 @@ const MOODS: Mood[] = [
   { state: 'lonely', label: 'Lonely', icon: HeartHalf, color: 'var(--mood-lonely)' },
 ];
 
+const STRESS_HINTS = ['presentation', 'deadline', 'interview', 'review', 'demo', 'exam', 'pitch', 'defense', 'defence', 'performance', 'hearing'];
+const isStressfulTitle = (t: string) => STRESS_HINTS.some((h) => (t || '').toLowerCase().includes(h));
+
+const PATTERNS: Record<'unwind' | 'box', any> = {
+  unwind: { inhale: 4, hold_in: 2, exhale: 6, hold_out: 0, cycles: 5 },
+  box: { inhale: 4, hold_in: 4, exhale: 4, hold_out: 4, cycles: 6 },
+};
+const PATTERN_LABEL: Record<'unwind' | 'box', string> = { unwind: 'Unwind', box: 'Box breath' };
+
 type Phase = 'select' | 'listening' | 'responded';
+type PrepareMode =
+  | { kind: 'breath'; method: 'unwind' | 'box' }
+  | { kind: 'ritual' }
+  | null;
+
+interface CalEvent { id: string; provider: string; title: string; start_iso: string; all_day: boolean; }
+
+function fmtClock(iso: string, allDay: boolean): string {
+  if (allDay) return 'All day';
+  return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
 
 export function Today() {
   const [mood, setMood] = useState<Mood | null>(null);
@@ -40,14 +58,25 @@ export function Today() {
   const [meta, setMeta] = useState<any>(null);
   const [showSession, setShowSession] = useState(false);
 
+  const [events, setEvents] = useState<CalEvent[]>([]);
+  const [steadyOpen, setSteadyOpen] = useState(false);
+  const [prepareMode, setPrepareMode] = useState<PrepareMode>(null);
+
   const accent = mood ? mood.color : 'var(--lantern)';
+  const imminent = events[0] || null;
+  const minutesTo = imminent ? (new Date(imminent.start_iso).getTime() - Date.now()) / 60000 : Infinity;
+  const emphasised = !!imminent && (isStressfulTitle(imminent.title) || minutesTo <= 90);
 
   const hour = new Date().getHours();
   const greeting =
-    hour < 5 ? 'It\u2019s late' :
+    hour < 5 ? 'It’s late' :
     hour < 12 ? 'Good morning' :
     hour < 17 ? 'Good afternoon' :
-    hour < 21 ? 'Good evening' : 'It\u2019s late';
+    hour < 21 ? 'Good evening' : 'It’s late';
+
+  useEffect(() => {
+    getCalendarEvents(3).then((d) => setEvents(d?.events || [])).catch(() => {});
+  }, []);
 
   const submit = async () => {
     if (!mood || phase === 'listening') return;
@@ -64,7 +93,7 @@ export function Today() {
         },
       );
     } catch {
-      setWizardMsg('I\u2019m having trouble connecting right now. Try again in a moment?');
+      setWizardMsg('I’m having trouble connecting right now. Try again in a moment?');
       setPhase('responded');
     }
   };
@@ -77,6 +106,18 @@ export function Today() {
     setMeta(null);
   };
 
+  const pickSteady = (m: SteadyMethod) => {
+    setSteadyOpen(false);
+    setPrepareMode(m === 'intention' ? { kind: 'ritual' } : { kind: 'breath', method: m });
+  };
+
+  const finishPrepare = (methodLabel: string) => {
+    const title = imminent?.title || "what's ahead";
+    logLife({ dimension: 'preparation', note: `${methodLabel} before ${title}` }).catch(() => {});
+    setPrepareMode(null);
+  };
+
+  // ── full-screen overlays ──
   if (showSession && meta?.session_config?.breathing_pattern && !meta?.protocol) {
     return (
       <BreathingSession
@@ -84,6 +125,30 @@ export function Today() {
         state={mood!.state}
         severityBefore={severity}
         onClose={() => { setShowSession(false); reset(); }}
+      />
+    );
+  }
+  if (prepareMode?.kind === 'breath') {
+    const m = prepareMode.method;
+    return (
+      <BreathingSession
+        config={{ name: PATTERN_LABEL[m], breathing_pattern: PATTERNS[m] }}
+        state="preparing"
+        severityBefore={0}
+        onComplete={() => finishPrepare(PATTERN_LABEL[m])}
+        onClose={() => setPrepareMode(null)}
+        completeHeading="You gave yourself a moment."
+        completeBody="However small, that pause matters. Carry its calm in with you."
+        completeLabel="Carry it with you"
+      />
+    );
+  }
+  if (prepareMode?.kind === 'ritual') {
+    return (
+      <PreparationRitual
+        eventTitle={imminent?.title || "what's ahead"}
+        onDone={() => finishPrepare('a moment of intention')}
+        onClose={() => setPrepareMode(null)}
       />
     );
   }
@@ -102,6 +167,53 @@ export function Today() {
           <p className="mt-1 text-sm text-muted">How are you arriving right now?</p>
         </div>
 
+        {/* ── the horizon: what's coming, and a way to steady yourself ── */}
+        {imminent && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -2 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+            className="relative overflow-hidden rounded-card border border-line bg-surface p-4"
+          >
+            <span className="absolute inset-y-0 left-0 w-1" style={{ background: emphasised ? 'var(--lantern)' : 'var(--line)' }} />
+            <div className="pointer-events-none absolute -right-6 -top-8 h-28 w-28 rounded-full bg-lantern/10 blur-2xl" />
+
+            <div className="flex items-center gap-3">
+              <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--lantern) 12%, transparent)' }}>
+                <CalendarBlank size={18} weight="light" className="text-lantern" />
+                <motion.span
+                  className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-lantern"
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 2.2, repeat: Infinity }}
+                />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-faint">
+                  {emphasised ? 'coming up — a big one' : 'on your horizon'}
+                </p>
+                <p className="truncate text-[15px] font-medium leading-tight">{imminent.title}</p>
+              </div>
+              <span className="shrink-0 font-wizard text-lg text-muted">{fmtClock(imminent.start_iso, imminent.all_day)}</span>
+            </div>
+
+            <button
+              onClick={() => setSteadyOpen(true)}
+              className={
+                'mt-3.5 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium transition-all ' +
+                (emphasised
+                  ? 'bg-lantern text-bg hover:bg-ember hover:shadow-[0_0_20px_rgba(224,162,58,0.4)]'
+                  : 'border border-line text-muted hover:border-lantern/50 hover:text-lantern')
+              }
+            >
+              <Wind size={16} weight="light" />
+              {emphasised ? 'Steady yourself before this' : 'A moment to centre first'}
+            </button>
+          </motion.div>
+        )}
+
+        {/* ── the check-in heartbeat ── */}
         <div className="grid grid-cols-4 gap-2.5">
           {MOODS.map((m) => {
             const selected = mood?.state === m.state;
@@ -158,7 +270,7 @@ export function Today() {
 
               <button
                 onClick={submit}
-                className="w-full rounded-full py-3 font-medium transition-all hover:shadow-[0_0_24px_rgba(245,184,65,0.4)]"
+                className="w-full rounded-full py-3 font-medium transition-all hover:shadow-[0_0_24px_rgba(224,162,58,0.4)]"
                 style={{ background: accent, color: 'var(--bg)' }}
               >
                 Share with the wizard
@@ -169,13 +281,9 @@ export function Today() {
 
         {(phase === 'listening' || phase === 'responded') && (
           <div className="space-y-4">
-            {/* For a single intervention, the wizard speaks here.
-                For a protocol, the journey itself is the wizard's voice. */}
             {!meta?.protocol && (
               <div className="flex gap-3">
-                <div className="mt-1 shrink-0">
-                  <MotifMark size={26} />
-                </div>
+                <div className="mt-1 shrink-0"><MotifMark size={26} /></div>
                 <div className="min-w-0">
                   {phase === 'listening' && !wizardMsg ? (
                     <div className="flex items-center gap-1.5 pt-2">
@@ -228,6 +336,16 @@ export function Today() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {steadyOpen && imminent && (
+          <SteadySheet
+            eventTitle={imminent.title}
+            onPick={pickSteady}
+            onClose={() => setSteadyOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
