@@ -1,14 +1,20 @@
 """
-Motif — Wellness Wizard API + PWA host.
+Motif — Wellness Wizard API + PWA host + integrations.
 
-Serves both the API and the built PWA from a single origin, so the app
-works from any device on the network with no CORS or hardcoded hosts.
-Build the frontend first:  cd anima-app && npm run build
+Serves the API, the integrations OAuth endpoints, and the built PWA from a
+single origin. Build the frontend first:  cd anima-app && npm run build
 """
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "demo"))
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+except ImportError:
+    pass  # no loader installed -> rely on the shell environment
+
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,16 +22,16 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from api.routes import router
+from api.integrations_routes import router as integrations_router
 from wellness.interventions import INTERVENTIONS
 from wellness.protocols import PROTOCOLS
 
 app = FastAPI(
     title="Motif — Wellness Companion",
     description="A calm companion that notices the patterns of your life.",
-    version="0.3.0",
+    version="0.4.0",
 )
 
-# Kept for the dev server (Vite on :5173 talking to API on :8000).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,13 +41,14 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api/v1", tags=["wizard"])
+app.include_router(integrations_router, prefix="/api/v1/integrations", tags=["integrations"])
 
 
 @app.get("/api/v1/info")
 async def info():
     return {
         "name": "Motif",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "interventions": len(INTERVENTIONS),
         "protocols": len(PROTOCOLS),
     }

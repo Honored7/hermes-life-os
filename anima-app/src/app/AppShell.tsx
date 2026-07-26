@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   SunHorizon, ChatTeardrop, Plant, Sparkle, UserCircle,
 } from '@phosphor-icons/react';
@@ -8,6 +8,7 @@ import { Today } from './Today';
 import { Companion } from './Companion';
 import { Life } from './Life';
 import { Insights } from './Insights';
+import { You } from './You';
 import type { IconComponent } from '../components/icons/dimensions';
 
 type TabId = 'today' | 'companion' | 'life' | 'insights' | 'you';
@@ -21,11 +22,21 @@ const TABS: { id: TabId; label: string; icon: IconComponent }[] = [
 ];
 
 const SCREENS: Record<TabId, boolean> = {
-  today: true, companion: true, life: true, insights: true, you: false,
+  today: true, companion: true, life: true, insights: true, you: true,
 };
 
 export function AppShell() {
   const [active, setActive] = useState<TabId>('today');
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get('connected');
+    const err = params.get('error');
+    if (connected) { setActive('you'); setNotice({ kind: 'ok', text: `Connected ${connected}. Motif can see your calendar now.` }); }
+    else if (err) { setActive('you'); setNotice({ kind: 'err', text: `Couldn't connect: ${decodeURIComponent(err)}` }); }
+    if (connected || err) window.history.replaceState({}, '', window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="mx-auto flex h-[100dvh] max-w-md flex-col bg-bg text-ink">
@@ -42,6 +53,7 @@ export function AppShell() {
         {active === 'companion' && <Companion />}
         {active === 'life' && <Life onCheckIn={() => setActive('today')} />}
         {active === 'insights' && <Insights />}
+        {active === 'you' && <You initialNotice={notice} />}
         {!SCREENS[active] && <ScreenPlaceholder name={active} />}
       </main>
 

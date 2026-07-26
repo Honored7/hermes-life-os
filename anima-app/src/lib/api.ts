@@ -171,3 +171,26 @@ export async function streamReflection(
   }, signal);
   finish();
 }
+
+// ── Calendar integrations ────────────────────────────────────────────
+export async function getCalendarStatus(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/integrations/calendar`);
+  return res.json();
+}
+
+/** URL that begins the OAuth dance; navigate the whole tab to it. */
+export function calendarStartUrl(provider: string, redirect: string): string {
+  return `${API_BASE}/api/v1/integrations/calendar/${provider}/start?redirect=${encodeURIComponent(redirect)}`;
+}
+
+export async function disconnectCalendar(provider: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/integrations/calendar/${provider}/disconnect`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+export async function getCalendarEvents(limit = 5, force = false): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/integrations/calendar/events?limit=${limit}&force=${force}`);
+  return res.json();
+}
