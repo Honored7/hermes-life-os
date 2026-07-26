@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timezone
 
 from integrations.calendar_base import (
     CalendarEvent, CalendarProvider, NotConfigured, http_get_json, http_post_form,
@@ -12,7 +12,7 @@ from integrations.calendar_base import (
 _TENANT = "common"  # personal Microsoft accounts + work/school
 _AUTH = f"https://login.microsoftonline.com/{_TENANT}/oauth2/v2.0/authorize"
 _TOKEN = f"https://login.microsoftonline.com/{_TENANT}/oauth2/v2.0/token"
-_EVENTS = "https://graph.microsoft.com/v1.0/me/events"
+_VIEW = "https://graph.microsoft.com/v1.0/me/calendarView"
 _ME = "https://graph.microsoft.com/v1.0/me"
 _SCOPE = "Calendars.Read offline_access User.Read"
 
@@ -24,7 +24,6 @@ def _public_base() -> str:
 def _parse_when(when: dict) -> tuple[str, bool]:
     if when.get("dateTime"):
         tz = when.get("timeZone") or "UTC"
-        # Graph gives naive local time + a zone name; attach offset via zoneinfo if possible
         iso = when["dateTime"]
         try:
             from zoneinfo import ZoneInfo
@@ -109,15 +108,18 @@ class MicrosoftCalendar(CalendarProvider):
             return "Microsoft"
 
     def fetch_events(self, token: dict, time_min: datetime, time_max: datetime) -> list:
+        # calendarView returns exactly the events occurring in [time_min, time_max]
+        # and expands recurring instances. /me/events + $top would return the oldest
+        # 100 events (all past, on a calendar with history) and filter to nothing.
         qs = urllib.parse.urlencode({
+            "startDateTime": time_min.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "endDateTime": time_max.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "$select": "id,subject,start,end,isAllDay,location,webLink",
             "$top": "100",
             "$orderby": "start/dateTime",
         })
-        data = http_get_json(f"{_EVENTS}?{qs}", {"Authorization": f"Bearer {token['access_token']}"})
-        events = [_normalise_event(it) for it in data.get("value", [])]
-        # client-side windowing (Graph $filter on date/time is finicky across tz)
-        return [e for e in events if e.start_dt < time_max and e.end_dt >= time_min]
+        data = http_get_json(f"{_VIEW}?{qs}", {"Authorization": f"Bearer {token['access_token']}"})
+        return [_normalise_event(it) for it in data.get("value", [])]
 
 
 def _shape_token(resp: dict) -> dict:

@@ -147,3 +147,7 @@ input[type="range"].mood-slider::-moz-range-thumb {
   border: 3px solid var(--bg);
   box-shadow: 0 0 14px color-mix(in srgb, var(--slider-color) 55%, transparent);
 }
+
+/* hide scrollbar but keep scroll — the peeking row + count chip signal overflow */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
