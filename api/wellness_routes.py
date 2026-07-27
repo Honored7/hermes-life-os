@@ -48,3 +48,33 @@ async def companion_chat_stream(req: CompanionReq):
             yield f"data: {json.dumps(ev)}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.get("/life/dimensions")
+async def life_dimensions():
+    from wellness.dimensions import dimension_stats
+    return dimension_stats()
+
+
+class JournalReq(BaseModel):
+    html: str = ""
+    text: str = ""
+    is_dream: bool = False
+
+
+@router.get("/life/journal")
+async def journal_list():
+    from wellness.journal import list_entries
+    return {"entries": list_entries()}
+
+
+@router.post("/life/journal")
+async def journal_add(req: JournalReq):
+    from wellness.journal import add_entry
+    return {"entry": add_entry(req.html, req.text, req.is_dream)}
+
+
+@router.delete("/life/journal/{entry_id}")
+async def journal_delete(entry_id: str):
+    from wellness.journal import delete_entry
+    return {"deleted": delete_entry(entry_id)}

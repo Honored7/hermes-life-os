@@ -233,3 +233,28 @@ export async function streamCompanionChat(
   }, signal);
   finish();
 }
+
+/** Per-dimension series + guarded cross-sight — powers the Life cards. */
+export async function getDimensionStats(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/dimensions`);
+  return res.json();
+}
+
+export async function getJournal(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/journal`);
+  return res.json();
+}
+
+export async function addJournalEntry(payload: { html: string; text: string; is_dream: boolean }): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/journal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function deleteJournalEntry(id: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/journal/${id}`, { method: 'DELETE' });
+  return res.json();
+}

@@ -158,3 +158,10 @@ input[type="range"].mood-slider::-moz-range-thumb {
   18%  { opacity: 0.7; }
   100% { transform: translateY(-132px); opacity: 0; }
 }
+
+/* the person's own journal words, gently typeset */
+.prose-motif p { margin: 0 0 0.5em; }
+.prose-motif h2 { font-family: var(--font-wizard); font-size: 1.1rem; margin: 0.4em 0 0.2em; }
+.prose-motif ul { margin: 0.3em 0; padding-left: 1.2em; }
+.prose-motif li { margin: 0.15em 0; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
