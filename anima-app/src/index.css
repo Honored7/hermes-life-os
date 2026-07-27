@@ -151,3 +151,10 @@ input[type="range"].mood-slider::-moz-range-thumb {
 /* hide scrollbar but keep scroll — the peeking row + count chip signal overflow */
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* lantern embers drifting through the Today aura — on-brand, not an aurora blob */
+@keyframes mote-rise {
+  0%   { transform: translateY(10px); opacity: 0; }
+  18%  { opacity: 0.7; }
+  100% { transform: translateY(-132px); opacity: 0; }
+}

@@ -200,3 +200,9 @@ export async function getRhythm(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/insights/rhythm`);
   return res.json();
 }
+
+/** Mood distribution over the last week — powers the Today aura. */
+export async function getMoodWeather(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/insights/mood-weather`);
+  return res.json();
+}

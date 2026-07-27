@@ -14,6 +14,7 @@ import { BreathingSession } from '../components/session/BreathingSession';
 import { SteadySheet, type SteadyMethod } from '../components/session/SteadySheet';
 import { PreparationRitual } from '../components/session/PreparationRitual';
 import { MotifMark } from '../components/brand/MotifMark';
+import { MoodAura } from '../components/cards/MoodAura';
 
 interface Mood { state: string; label: string; icon: IconComponent; color: string; }
 
@@ -237,6 +238,13 @@ export function Today() {
           <h1 className="font-wizard text-[28px] leading-tight">{greeting}.</h1>
           <p className="mt-1 text-sm text-muted">How are you arriving right now?</p>
         </div>
+
+        <MoodAura
+          onSelect={(st) => {
+            const found = MOODS.find((m) => m.state === st);
+            if (found) { setPhase('select'); setWizardMsg(''); setMeta(null); setMood(found); }
+          }}
+        />
 
         {/* ── the horizon: tone-aware, stackable, settle-able ── */}
         {imminent && (

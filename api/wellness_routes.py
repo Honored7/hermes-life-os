@@ -24,3 +24,9 @@ class HealthPayload(BaseModel):
 async def ingest_health(payload: HealthPayload):
     from wellness.ingest import ingest
     return {"ingested": ingest(payload.model_dump(exclude_none=True))}
+
+
+@router.get("/insights/mood-weather")
+async def insights_mood_weather():
+    from wellness.insights import mood_weather
+    return mood_weather()

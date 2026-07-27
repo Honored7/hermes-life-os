@@ -144,3 +144,38 @@ def get_insights_summary() -> dict:
         "effective": get_effective_interventions(),
         "signature": _recent_signature(),
     }
+
+STATES = ["good", "neutral", "stressed", "anxious", "sad", "angry", "low_energy", "lonely"]
+
+
+def mood_weather(days: int = 7) -> dict:
+    """Distribution of moods over the last N days — the data behind the Today aura."""
+    try:
+        entries = get_recent_memory(days=days)
+    except Exception:
+        entries = []
+    moods = [e for e in entries if e.get("type") == "mood" and e.get("state")]
+    counts = {st: 0 for st in STATES}
+    sev = []
+    for e in moods:
+        st = e.get("state")
+        if st in counts:
+            counts[st] += 1
+        if e.get("severity") is not None:
+            try:
+                sev.append(float(e["severity"]))
+            except (TypeError, ValueError):
+                pass
+    total = sum(counts.values())
+    predominant = max(counts, key=counts.get) if total else None
+    spread = len([c for c in counts.values() if c > 0])
+    temperature = round(sum(sev) / len(sev), 1) if sev else None
+    return {
+        "total": total,
+        "days": days,
+        "predominant": predominant,
+        "predominant_count": counts.get(predominant, 0) if predominant else 0,
+        "spread": spread,
+        "temperature": temperature,
+        "counts": counts,
+    }
