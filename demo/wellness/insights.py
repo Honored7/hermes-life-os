@@ -179,3 +179,98 @@ def mood_weather(days: int = 7) -> dict:
         "temperature": temperature,
         "counts": counts,
     }
+
+
+# valence per mood — the axis the tone-shift verdict reads (warm vs cool)
+VALENCE = {
+    "good": 2, "neutral": 1,
+    "stressed": -1, "low_energy": -1,
+    "anxious": -2, "sad": -2, "angry": -2, "lonely": -2,
+}
+STATE_WORD = {
+    "good": "joyful", "neutral": "calm", "stressed": "stressed",
+    "anxious": "anxious", "sad": "sad", "angry": "angry",
+    "low_energy": "drained", "lonely": "lonely",
+}
+
+
+def _date_of(e) -> str:
+    d = e.get("date")
+    return str(d) if d else str(e.get("timestamp", ""))[:10]
+
+
+def mood_trend(days: int = 21) -> dict:
+    """The emotional mirror: an intensity line (colour = mood) plus a
+    valence-based tone-shift verdict that can never contradict it."""
+    from datetime import date as _date, timedelta
+    try:
+        entries = get_recent_memory(days=days)
+    except Exception:
+        entries = []
+
+    rows = []  # (date_str, state, severity)
+    for e in entries:
+        if e.get("type") != "mood" or not e.get("state") or e.get("severity") is None:
+            continue
+        d = _date_of(e)
+        if not d:
+            continue
+        try:
+            rows.append((d, e["state"], float(e["severity"])))
+        except (TypeError, ValueError):
+            continue
+
+    by = {}
+    for d, st, sev in rows:
+        by.setdefault(d, {"sevs": [], "states": []})
+        by[d]["sevs"].append(sev)
+        by[d]["states"].append(st)
+    series = []
+    for d in sorted(by):
+        sevs, states = by[d]["sevs"], by[d]["states"]
+        series.append({
+            "date": d,
+            "severity": round(sum(sevs) / len(sevs), 1),
+            "state": max(set(states), key=states.count),
+        })
+    series = series[-days:]
+
+    today = _date.today()
+    this_rows = [r for r in rows if (today - timedelta(days=6)).isoformat() <= r[0] <= today.isoformat()]
+    last_rows = [r for r in rows if (today - timedelta(days=13)).isoformat() <= r[0] <= (today - timedelta(days=7)).isoformat()]
+
+    def vavg(rs):
+        return sum(VALENCE.get(st, 0) for _, st, _ in rs) / len(rs) if rs else None
+
+    def pred(rs):
+        sts = [st for _, st, _ in rs]
+        return max(set(sts), key=sts.count) if sts else None
+
+    tv, lv = vavg(this_rows), vavg(last_rows)
+    if tv is None or lv is None:
+        direction, delta = "none", None
+    else:
+        delta = round(tv - lv, 2)
+        direction = "warmer" if delta >= 0.6 else ("cooler" if delta <= -0.6 else "holding")
+
+    tw = STATE_WORD.get(pred(this_rows), "your days")
+    lw = STATE_WORD.get(pred(last_rows), "before")
+    verdict = {
+        "none": "Not quite two weeks of check-ins yet — the mirror is still clearing. Keep naming how you feel, and a shape will form.",
+        "holding": f"About the same ground as last week — {tw}, holding steady. There is a quiet strength in that consistency.",
+        "warmer": f"The tone of your week has warmed — {lw} giving way to more {tw}. Whatever you have been doing, some of it is landing.",
+        "cooler": f"A cooler week than the last — more {tw} than {lw}. That is worth tending gently, not fixing in a hurry.",
+    }[direction]
+
+    this_intensity = round(sum(s for _, _, s in this_rows) / len(this_rows), 1) if this_rows else None
+    return {
+        "series": series,
+        "direction": direction,
+        "delta": delta,
+        "verdict": verdict,
+        "this_predominant": pred(this_rows),
+        "last_predominant": pred(last_rows),
+        "this_intensity": this_intensity,
+        "this_count": len(this_rows),
+        "last_count": len(last_rows),
+    }

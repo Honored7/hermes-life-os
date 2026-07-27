@@ -258,3 +258,9 @@ export async function deleteJournalEntry(id: string): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/life/journal/${id}`, { method: 'DELETE' });
   return res.json();
 }
+
+/** The emotional mirror — intensity line + honest tone-shift verdict. */
+export async function getMoodTrend(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/insights/mood-trend`);
+  return res.json();
+}

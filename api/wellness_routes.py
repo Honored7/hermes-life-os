@@ -78,3 +78,9 @@ async def journal_add(req: JournalReq):
 async def journal_delete(entry_id: str):
     from wellness.journal import delete_entry
     return {"deleted": delete_entry(entry_id)}
+
+
+@router.get("/insights/mood-trend")
+async def insights_mood_trend():
+    from wellness.insights import mood_trend
+    return mood_trend()
