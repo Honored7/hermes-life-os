@@ -1,5 +1,8 @@
-"""Wellness endpoints — the companion's eyes (sleep rhythm, and more to come)."""
+"""Wellness endpoints — the companion's eyes, and the door its sensors walk through."""
+from typing import List, Optional
+
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -8,3 +11,16 @@ router = APIRouter()
 async def insights_rhythm():
     from wellness.vitals import rhythm_payload
     return rhythm_payload()
+
+
+class HealthPayload(BaseModel):
+    source: str = "wearable"
+    sleep: Optional[List[dict]] = None
+    heart_rate: Optional[List[dict]] = None
+    steps: Optional[List[dict]] = None
+
+
+@router.post("/ingest/health")
+async def ingest_health(payload: HealthPayload):
+    from wellness.ingest import ingest
+    return {"ingested": ingest(payload.model_dump(exclude_none=True))}

@@ -194,3 +194,9 @@ export async function getCalendarEvents(limit = 5, force = false): Promise<any> 
   const res = await fetch(`${API_BASE}/api/v1/integrations/calendar/events?limit=${limit}&force=${force}`);
   return res.json();
 }
+
+/** The sleep rhythm the eyes see — powers the Rhythm card. */
+export async function getRhythm(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/insights/rhythm`);
+  return res.json();
+}

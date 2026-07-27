@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { TrendUp, Trophy } from '@phosphor-icons/react';
 import { getInsights, streamReflection } from '../lib/api';
 import { MotifMark } from '../components/brand/MotifMark';
+import { RhythmCard } from '../components/cards/RhythmCard';
 
 const CACHE_KEY = 'motif-reflection';
 
@@ -155,6 +156,8 @@ export function Insights() {
             {reflecting ? 'Reflecting…' : 'Reflect again'}
           </button>
         </div>
+
+        <RhythmCard />
 
         {effective.length > 0 && (
           <section>
