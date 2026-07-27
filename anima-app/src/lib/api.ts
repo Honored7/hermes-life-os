@@ -206,3 +206,30 @@ export async function getMoodWeather(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/insights/mood-weather`);
   return res.json();
 }
+
+/** The bounded, grounded companion chat. Streams tokens + optional safety meta. */
+export async function streamCompanionChat(
+  message: string,
+  onToken: (t: string) => void,
+  onMeta: (ev: any) => void,
+  onDone: () => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/v1/companion/chat/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+    signal,
+  });
+  let finished = false;
+  const finish = () => { if (!finished) { finished = true; onDone(); } };
+  await readSSE(response, (data) => {
+    try {
+      const ev = JSON.parse(data);
+      if (ev.type === 'token') onToken(ev.text ?? '');
+      else if (ev.type === 'meta') onMeta(ev);
+      else if (ev.type === 'done') finish();
+    } catch { /* ignore malformed */ }
+  }, signal);
+  finish();
+}

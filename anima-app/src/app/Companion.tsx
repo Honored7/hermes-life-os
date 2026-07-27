@@ -1,215 +1,192 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PaperPlaneTilt } from '@phosphor-icons/react';
+import { PaperPlaneRight, Heart } from '@phosphor-icons/react';
 import { MotifMark } from '../components/brand/MotifMark';
-import { streamWizardChat } from '../lib/api';
+import { streamCompanionChat } from '../lib/api';
 
-interface Message {
-  role: 'user' | 'wizard';
-  text: string;
-  streaming?: boolean;
-}
+interface Msg { id: number; role: 'user' | 'wizard'; text: string; streaming?: boolean; safety?: boolean; }
 
-const GREETING: Message = {
-  role: 'wizard',
-  text: "I'm here. Tell me what's on your mind — the heavy stuff, the good stuff, or nothing at all. I'm listening.",
-};
-
-const SUGGESTIONS = [
-  "I'm feeling stressed",
-  'I can\u2019t sleep',
-  'I had a good day',
-  'I feel a bit lonely',
+const OPENERS = [
+  'Today was heavy',
+  'I can’t sleep',
+  'I just need to vent',
+  'What’s been helping me lately?',
 ];
 
+let _id = 0;
+const nextId = () => ++_id;
+
 export function Companion() {
-  const [messages, setMessages] = useState<Message[]>([GREETING]);
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const controllerRef = useRef<AbortController | null>(null);
 
-  const hasUserSpoken = messages.some((m) => m.role === 'user');
-
-  // Keep the latest message in view as the wizard speaks
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: 'smooth',
-    });
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  const send = async (raw?: string) => {
+  useEffect(() => () => controllerRef.current?.abort(), []);
+
+  const patchLast = (mut: (m: Msg) => Msg) =>
+    setMessages((prev) => {
+      const cp = [...prev];
+      if (cp.length && cp[cp.length - 1].role === 'wizard') cp[cp.length - 1] = mut(cp[cp.length - 1]);
+      return cp;
+    });
+
+  const send = (raw?: string) => {
     const text = (raw ?? input).trim();
-    if (!text || isStreaming) return;
-
+    if (!text || sending) return;
     setInput('');
-    setMessages((prev) => [
-      ...prev,
-      { role: 'user', text },
-      { role: 'wizard', text: '', streaming: true },
-    ]);
-    setIsStreaming(true);
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    const signal = controller.signal;
 
-    try {
-      await streamWizardChat(text, (chunk) => {
-        setMessages((prev) => {
-          const next = [...prev];
-          next[next.length - 1] = {
-            ...next[next.length - 1],
-            text: next[next.length - 1].text + chunk,
-          };
-          return next;
-        });
-      });
-    } catch {
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = {
-          role: 'wizard',
-          text: 'I\u2019m having trouble finding my voice right now. Give me a moment and try again?',
-        };
-        return next;
-      });
-    } finally {
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = { ...next[next.length - 1], streaming: false };
-        return next;
-      });
-      setIsStreaming(false);
-      inputRef.current?.focus();
-    }
+    setMessages((p) => [
+      ...p,
+      { id: nextId(), role: 'user', text },
+      { id: nextId(), role: 'wizard', text: '', streaming: true },
+    ]);
+    setSending(true);
+
+    streamCompanionChat(
+      text,
+      (t) => { if (!signal.aborted) patchLast((m) => ({ ...m, text: m.text + t })); },
+      (ev) => { if (!signal.aborted && ev?.kind === 'safety') patchLast((m) => ({ ...m, safety: true })); },
+      () => { if (!signal.aborted) { patchLast((m) => ({ ...m, streaming: false })); setSending(false); } },
+      signal,
+    ).catch(() => {
+      if (signal.aborted) return;
+      patchLast((m) => ({ ...m, text: m.text || 'I lost the thread for a second. I’m still here — try me again?', streaming: false }));
+      setSending(false);
+    });
   };
+
+  const empty = messages.length === 0;
 
   return (
     <div className="relative flex h-full flex-col">
-      {/* Ambient layer — the wizard's light fills the room */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-x-0 top-0 h-72 bg-[radial-gradient(ellipse_at_top,rgba(245,184,65,0.10),transparent_65%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-56 bg-[radial-gradient(ellipse_at_bottom,rgba(127,181,160,0.06),transparent_65%)]" />
+      {/* ambient field */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-20 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-lantern blur-[120px] opacity-10" />
+        {[18, 44, 70, 88].map((l, i) => (
+          <span key={i} className="absolute bottom-24 h-1 w-1 rounded-full bg-lantern"
+            style={{ left: `${l}%`, animation: `mote-rise ${8 + i}s ease-in ${i * 1.3}s infinite` }} />
+        ))}
       </div>
 
-      {/* The wizard's presence */}
-      <div className="relative flex items-center gap-3 pb-4 pt-2">
-        <div className="relative">
-          <MotifMark size={40} />
-        </div>
-        <div>
-          <p className="font-wizard text-lg leading-tight">The Wizard</p>
-          <p className="text-xs text-faint">
-            {isStreaming ? 'speaking\u2026' : 'here with you'}
-          </p>
-        </div>
-      </div>
-
-      {/* Conversation */}
-      <div ref={scrollRef} className="relative flex-1 space-y-6 overflow-y-auto pb-4 pr-1">
-        {messages.map((msg, i) =>
-          msg.role === 'wizard' ? (
-            <WizardBubble key={i} msg={msg} />
-          ) : (
+      {/* the thread */}
+      <div ref={scrollRef} className="relative flex-1 overflow-y-auto py-2">
+        <AnimatePresence initial={false}>
+          {empty ? (
             <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="flex justify-end"
+              key="empty"
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="flex h-full flex-col items-center justify-center px-2 text-center"
             >
-              <p className="max-w-[80%] rounded-2xl rounded-br-md bg-surface-2 px-4 py-2.5 text-[15px] leading-relaxed">
-                {msg.text}
+              <div className="opacity-90"><MotifMark size={64} /></div>
+              <h2 className="mt-5 font-wizard text-[30px] leading-tight">I’m here.</h2>
+              <p className="mt-2 max-w-[17rem] text-[14px] leading-relaxed text-muted">
+                Tell me what’s on your mind — or nothing at all. I’ll keep you company either way.
               </p>
+              <div className="mt-7 flex max-w-xs flex-wrap justify-center gap-2">
+                {OPENERS.map((o) => (
+                  <button key={o} onClick={() => send(o)}
+                    className="rounded-full border border-line bg-surface px-3.5 py-2 text-[13px] text-muted transition-all hover:-translate-y-0.5 hover:border-lantern/50 hover:text-lantern">
+                    {o}
+                  </button>
+                ))}
+              </div>
             </motion.div>
-          ),
-        )}
+          ) : (
+            <div className="space-y-4">
+              {messages.map((m) => (
+                <motion.div
+                  key={m.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className={'flex ' + (m.role === 'user' ? 'justify-end' : 'justify-start')}
+                >
+                  {m.role === 'user' ? (
+                    <div className="max-w-[82%] rounded-2xl rounded-br-md bg-surface-2 px-4 py-2.5 text-[15px] leading-relaxed text-ink">
+                      {m.text}
+                    </div>
+                  ) : m.streaming && !m.text ? (
+                    <div className="flex items-center gap-2.5 pl-1">
+                      <span className="opacity-80"><MotifMark size={22} /></span>
+                      <span className="flex items-center gap-1.5">
+                        {[0, 1, 2].map((i) => (
+                          <motion.span key={i} className="h-1.5 w-1.5 rounded-full bg-lantern"
+                            animate={{ opacity: [0.25, 1, 0.25] }}
+                            transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }} />
+                        ))}
+                      </span>
+                    </div>
+                  ) : m.safety ? (
+                    <div className="max-w-[92%] rounded-2xl border border-lantern/30 p-4"
+                      style={{ background: 'linear-gradient(160deg, color-mix(in srgb, var(--lantern) 10%, var(--surface)), var(--surface))' }}>
+                      <div className="mb-2 flex items-center gap-2 text-lantern">
+                        <Heart size={17} weight="fill" />
+                        <span className="text-[11px] uppercase tracking-[0.2em]">you’re not alone</span>
+                      </div>
+                      <p className="whitespace-pre-line font-wizard text-[16px] leading-relaxed text-ink">{m.text}</p>
+                    </div>
+                  ) : (
+                    <div className="max-w-[92%] border-l-2 border-lantern/30 pl-3.5">
+                      <p className="whitespace-pre-line font-wizard text-[17px] leading-relaxed text-ink">
+                        {m.text}
+                        {m.streaming && (
+                          <motion.span className="ml-1 inline-block h-4 w-1.5 translate-y-0.5 rounded-full bg-lantern"
+                            animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 1, repeat: Infinity }} />
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Gentle starting points, until the first word is spoken */}
-      <AnimatePresence>
-        {!hasUserSpoken && (
-          <motion.div
-            exit={{ opacity: 0, height: 0 }}
-            className="relative flex flex-wrap gap-2 pb-3"
+      {/* the input */}
+      <div className="relative shrink-0 pb-2 pt-3">
+        <div className="flex items-end gap-2 rounded-2xl border border-line bg-surface p-2 pl-4 transition-colors focus-within:border-lantern/50 focus-within:shadow-[0_0_22px_rgba(224,162,58,0.12)]">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+            }}
+            rows={1}
+            placeholder="Share what’s on your mind…"
+            className="max-h-28 flex-1 resize-none bg-transparent py-2 text-[15px] leading-relaxed text-ink outline-none placeholder:text-faint"
+          />
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => send()}
+            disabled={!input.trim() || sending}
+            aria-label="Send"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-all disabled:opacity-35"
+            style={{
+              background: input.trim() ? 'var(--lantern)' : 'transparent',
+              color: input.trim() ? 'var(--bg)' : 'var(--faint)',
+              boxShadow: input.trim() ? '0 0 18px rgba(224,162,58,0.35)' : 'none',
+            }}
           >
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                onClick={() => send(s)}
-                className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-[13px] text-muted transition-all hover:border-lantern/50 hover:text-lantern"
-              >
-                {s}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Input */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-        className="relative flex items-center gap-2 border-t border-line pt-3 pb-2"
-      >
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Share what\u2019s on your mind\u2026"
-          disabled={isStreaming}
-          className="flex-1 rounded-full border border-line bg-surface px-4 py-2.5 text-[15px] outline-none transition-colors placeholder:text-faint focus:border-lantern/60 disabled:opacity-60"
-        />
-        <button
-          type="submit"
-          disabled={isStreaming || !input.trim()}
-          aria-label="Send"
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-lantern text-bg transition-all hover:bg-ember hover:shadow-[0_0_20px_rgba(245,184,65,0.4)] disabled:opacity-40 disabled:hover:shadow-none"
-        >
-          <PaperPlaneTilt size={18} weight="fill" />
-        </button>
-      </form>
+            <PaperPlaneRight size={19} weight={input.trim() ? 'fill' : 'light'} />
+          </motion.button>
+        </div>
+        <p className="mt-2 text-center text-[10px] text-faint/80">
+          A companion, not a clinician · your words stay on this device
+        </p>
+      </div>
     </div>
-  );
-}
-
-function WizardBubble({ msg }: { msg: Message }) {
-  const waiting = msg.streaming && !msg.text;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="flex gap-3"
-    >
-      <div className="mt-1 shrink-0">
-        <MotifMark size={26} />
-      </div>
-      <div className="min-w-0">
-        {waiting ? (
-          <div className="flex items-center gap-1.5 pt-2">
-            {[0, 1, 2].map((i) => (
-              <motion.span
-                key={i}
-                className="h-1.5 w-1.5 rounded-full bg-lantern"
-                animate={{ opacity: [0.25, 1, 0.25] }}
-                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="font-wizard text-[17px] leading-relaxed text-ink">
-            {msg.text}
-            {msg.streaming && (
-              <motion.span
-                className="ml-1 inline-block h-4 w-1.5 translate-y-0.5 rounded-full bg-lantern"
-                animate={{ opacity: [1, 0.2, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
-              />
-            )}
-          </p>
-        )}
-      </div>
-    </motion.div>
   );
 }
