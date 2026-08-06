@@ -84,3 +84,21 @@ async def journal_delete(entry_id: str):
 async def insights_mood_trend():
     from wellness.insights import mood_trend
     return mood_trend()
+
+
+@router.get("/you/moments")
+async def you_moments():
+    from wellness.you import moments
+    return moments()
+
+
+@router.get("/you/export")
+async def you_export():
+    from wellness.you import export_all
+    return export_all()
+
+
+@router.post("/you/wipe")
+async def you_wipe():
+    from wellness.you import wipe_all
+    return wipe_all()

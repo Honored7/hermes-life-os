@@ -99,3 +99,7 @@ def delete_entry(entry_id: str) -> bool:
         return False
     _save(kept)
     return True
+
+
+def clear_entries() -> None:
+    _save([])

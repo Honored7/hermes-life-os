@@ -77,7 +77,7 @@ export function Life({ onCheckIn }: { onCheckIn?: () => void }) {
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {DIMS.map((d) => (
-              <div key={d.id} className={(HERO.has(d.id) || FULL.has(d.id)) ? 'col-span-2' : 'col-span-1'}>
+              <div key={d.id} className={(HERO.has(d.id) || FULL.has(d.id)) ? 'col-span-2 min-w-0' : 'col-span-1 min-w-0'}>
                 <DimensionCard
                   cfg={d}
                   data={stats.dims?.[d.id]}
@@ -88,7 +88,7 @@ export function Life({ onCheckIn }: { onCheckIn?: () => void }) {
                 />
               </div>
             ))}
-            <div className="col-span-2"><JournalCard /></div>
+            <div className="col-span-2 min-w-0"><JournalCard /></div>
           </div>
         )}
       </div>

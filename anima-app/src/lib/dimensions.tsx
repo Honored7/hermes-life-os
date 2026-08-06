@@ -46,7 +46,7 @@ export const DIMS: DimConfig[] = [
       thriving: 'Deep, restoring nights lately. Your days have somewhere to stand.',
     },
     detail: 'Here’s the shape of your rest. The wizard reads this same line when you check in — so a rough patch never goes unnoticed.',
-    recovery: [{ kind: 'breathe', pattern: 'unwind', label: 'Settle into rest' }, { kind: 'journal', label: 'Write what’s keeping you up' }],
+    recovery: [{ kind: 'breathe', pattern: 'unwind', label: 'Settle into rest' }, { kind: 'journal', label: 'What’s keeping you up' }],
   },
   {
     id: 'mood', label: 'Mood & Energy', icon: Smiley, unit: '/10', valueKey: null, target: null, step: 1,
@@ -82,7 +82,7 @@ export const DIMS: DimConfig[] = [
       thriving: 'Nourished and steady. The wizard notices the days you eat well, you feel more like you.',
     },
     detail: 'Not a diet diary — a quiet record of how you care for the body that carries you.',
-    recovery: [{ kind: 'log', label: 'Log one warm meal' }, { kind: 'journal', label: 'Note what you’re craving' }],
+    recovery: [{ kind: 'log', label: 'Log one warm meal' }, { kind: 'journal', label: 'Note a craving' }],
   },
   {
     id: 'fitness', label: 'Fitness', icon: Barbell, unit: '/10', valueKey: 'quality', target: 7, step: 1,
@@ -106,7 +106,7 @@ export const DIMS: DimConfig[] = [
       thriving: 'A calmer inner weather lately. The practices you keep are working.',
     },
     detail: 'Sound mental health isn’t the absence of hard feelings — it’s the tending of them. Here’s your tending.',
-    recovery: [{ kind: 'breathe', pattern: 'box', label: 'A grounding breath' }, { kind: 'journal', label: 'Write what’s heavy' }],
+    recovery: [{ kind: 'breathe', pattern: 'box', label: 'A grounding breath' }, { kind: 'journal', label: 'Name what’s heavy' }],
   },
   {
     id: 'focus', label: 'Focus', icon: Crosshair, unit: '/10', valueKey: 'quality', target: 7, step: 1,

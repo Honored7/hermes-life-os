@@ -87,3 +87,8 @@ def ingest(payload: dict) -> dict:
     if payload.get("steps"):
         result["steps"] = ingest_steps(payload["steps"])
     return result
+
+
+def clear_vitals() -> None:
+    _write("heart_rate.json", [])
+    _write("steps.json", [])

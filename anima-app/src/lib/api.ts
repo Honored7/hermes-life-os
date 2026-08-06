@@ -264,3 +264,17 @@ export async function getMoodTrend(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/insights/mood-trend`);
   return res.json();
 }
+
+/** The You room — moments, export, wipe. */
+export async function getYouMoments(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/you/moments`);
+  return res.json();
+}
+export async function getYouExport(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/you/export`);
+  return res.json();
+}
+export async function postYouWipe(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/you/wipe`, { method: 'POST' });
+  return res.json();
+}
