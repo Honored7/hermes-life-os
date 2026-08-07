@@ -278,3 +278,17 @@ export async function postYouWipe(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/you/wipe`, { method: 'POST' });
   return res.json();
 }
+
+/** Life dimensions — real stats + real logs. */
+export async function getLifeStats(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/stats`);
+  return res.json();
+}
+export async function postLifeLog(kind: string, payload: Record<string, any> = {}): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/log-dim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind, ...payload }),
+  });
+  return res.json();
+}

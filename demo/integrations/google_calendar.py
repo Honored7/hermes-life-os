@@ -6,7 +6,7 @@ import urllib.parse
 from datetime import datetime
 
 from integrations.calendar_base import (
-    CalendarEvent, CalendarProvider, NotConfigured, http_get_json, http_post_form, now_utc,
+    CalendarEvent, CalendarProvider, NotConfigured, http_get_json, http_post_form,
 )
 
 _AUTH = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -69,7 +69,6 @@ class GoogleCalendar(CalendarProvider):
     def exchange_code(self, code: str) -> dict:
         if not self.is_configured():
             raise NotConfigured("Google client credentials not set")
-        import time
         resp = http_post_form(_TOKEN, {
             "code": code,
             "client_id": os.environ["GOOGLE_CLIENT_ID"],
@@ -80,7 +79,6 @@ class GoogleCalendar(CalendarProvider):
         return _shape_token(resp)
 
     def refresh(self, token: dict) -> dict:
-        import time
         resp = http_post_form(_TOKEN, {
             "client_id": os.environ["GOOGLE_CLIENT_ID"],
             "client_secret": os.environ["GOOGLE_CLIENT_SECRET"],

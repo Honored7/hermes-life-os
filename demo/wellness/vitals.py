@@ -61,7 +61,7 @@ def sleep_summary() -> dict:
     logs = _sleep_logs()
     if not logs:
         return {"count": 0, "avg_hours": None, "last_hours": None, "series": [], "poor_streak": 0}
-    hours = [l["hours"] for l in logs]
+    hours = [night["hours"] for night in logs]
     last7 = hours[-7:]
     streak = 0
     for h in reversed(hours):
@@ -73,7 +73,7 @@ def sleep_summary() -> dict:
         "count": len(logs),
         "avg_hours": round(sum(last7) / len(last7), 1),
         "last_hours": hours[-1],
-        "series": [{"date": l["date"], "hours": l["hours"]} for l in logs[-7:]],
+        "series": [{"date": night["date"], "hours": night["hours"]} for night in logs[-7:]],
         "poor_streak": streak,
     }
 
@@ -82,11 +82,11 @@ def detect_sleep_mood_pattern() -> str | None:
     logs = _sleep_logs()
     weights = _mood_weight_by_date()
     short_days, full_days = [], []
-    for l in logs:
-        w = weights.get(l["date"])
+    for night in logs:
+        w = weights.get(night["date"])
         if w is None:
             continue
-        (short_days if l["hours"] < LOW_SLEEP else full_days).append(w)
+        (short_days if night["hours"] < LOW_SLEEP else full_days).append(w)
     if len(short_days) < MIN_PAIRS or len(full_days) < MIN_PAIRS:
         return None
     short_avg = sum(short_days) / len(short_days)

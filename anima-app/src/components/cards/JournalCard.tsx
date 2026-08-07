@@ -45,6 +45,7 @@ export function JournalCard() {
   const [text, setText] = useState('');
   const [dream, setDream] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
 
   const load = () => getJournal().then((d) => setEntries(d?.entries || [])).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -52,7 +53,7 @@ export function JournalCard() {
   const save = async () => {
     if (!text.trim()) return;
     setSaving(true);
-    try { await addJournalEntry({ html, text, is_dream: dream }); setHtml(''); setText(''); setDream(false); load(); }
+    try { await addJournalEntry({ html, text, is_dream: dream }); setHtml(''); setText(''); setDream(false); setEditorKey((k) => k + 1); load(); }
     finally { setSaving(false); }
   };
   const remove = async (id: string) => { await deleteJournalEntry(id); load(); };
@@ -125,7 +126,7 @@ export function JournalCard() {
               <h2 className="mt-5 font-wizard text-[28px] leading-tight">Your journal</h2>
               <p className="mt-1 text-sm text-muted">Only you read this. Write the way you think.</p>
 
-              <div className="mt-5"><RichEditor onHtml={setHtml} onText={setText} /></div>
+              <div className="mt-5"><RichEditor key={editorKey} onHtml={setHtml} onText={setText} /></div>
 
               <button onClick={save} disabled={!text.trim() || saving}
                 className="mt-3 w-full rounded-full bg-lantern py-3 text-sm font-medium text-bg transition-all hover:bg-ember hover:shadow-[0_0_22px_rgba(224,162,58,0.4)] disabled:opacity-40">

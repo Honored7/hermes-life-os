@@ -8,7 +8,7 @@ from fastapi.responses import RedirectResponse
 
 from integrations import registry, sync
 from integrations.calendar_base import (
-    CalendarError, Disconnected, NotConfigured, clear_token, get_token, set_token,
+    CalendarError, NotConfigured, clear_token, get_token, set_token,
 )
 from integrations.nonces import consume, create
 

@@ -73,13 +73,35 @@ def _save(entries: list) -> None:
         raise
 
 
+# waking-page themes — the journal's quiet read of what your writing leans toward
+THEMES = {
+    "gratitude": ["grateful", "thankful", "thanks", "appreciate"],
+    "work": ["work", "job", "boss", "deadline", "meeting", "project", "office"],
+    "family": ["mother", "father", "mom", "dad", "sister", "brother", "family", "son", "daughter"],
+    "connection": ["friend", "friends", "talked", "called", "together", "love"],
+    "rest": ["sleep", "tired", "rest", "nap", "exhausted"],
+    "anxiety": ["anxious", "anxiety", "worried", "worry", "nervous", "stress", "stressed"],
+    "hope": ["hope", "hopeful", "excited", "looking forward", "plan"],
+    "health": ["walk", "run", "gym", "exercise", "workout", "medicine", "headache", "paracetamol"],
+    "low": ["sad", "down", "lonely", "alone", "cry"],
+}
+
+
+def tag_entry(text: str, is_dream: bool) -> list:
+    t = (text or "").lower()
+    tags = [k for k, ws in THEMES.items() if any(w in t for w in ws)]
+    if is_dream:
+        tags = tags + [x for x in tag_dream(text) if x not in tags]
+    return tags[:5]
+
+
 def add_entry(html: str, text: str, is_dream: bool) -> dict:
     entry = {
         "id": secrets.token_urlsafe(8),
         "html": (html or "")[:200000],
         "text": (text or "")[:50000],
         "is_dream": bool(is_dream),
-        "tags": tag_dream(text) if is_dream else [],
+        "tags": tag_entry(text, is_dream),
         "ts": time.time(),
     }
     entries = _load()

@@ -12,7 +12,7 @@ when a store is empty or shaped differently than expected.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date
 
 from wellness.insights import mood_weather
 from wellness.vitals import sleep_summary

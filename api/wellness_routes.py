@@ -2,7 +2,7 @@
 import json
 from typing import List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -102,3 +102,37 @@ async def you_export():
 async def you_wipe():
     from wellness.you import wipe_all
     return wipe_all()
+
+
+@router.get("/life/stats")
+async def life_stats():
+    from wellness.life_stats import dimension_stats
+    return dimension_stats()
+
+
+@router.post("/life/log-dim")
+async def life_log(request: Request):
+    from wellness import life_stats as LS, life
+    payload = await request.json()
+    kind = payload.get("kind")
+    if kind == "water":
+        return life.add_water(int(payload.get("glasses", 1)))
+    if kind == "sleep":
+        return life.log_sleep(float(payload.get("hours", 0)), int(payload.get("quality", 5)))
+    if kind == "nutrition":
+        return LS.log_nutrition(payload.get("food", ""), payload.get("calories", 0), payload.get("meal_time", ""))
+    if kind == "fitness":
+        return LS.log_fitness(payload.get("workout_type", ""), payload.get("duration_min", 0))
+    if kind == "focus":
+        return LS.log_focus(payload.get("task", ""), payload.get("duration_min", 25))
+    if kind == "stress":
+        return LS.log_stress(int(payload.get("score", 5)), payload.get("trigger", ""))
+    if kind == "meditation":
+        return LS.log_meditation(int(payload.get("duration_min", 10)))
+    if kind == "gratitude":
+        return LS.log_gratitude(payload.get("items", []))
+    if kind == "habit":
+        return LS.update_habit(payload.get("habit_name", ""), bool(payload.get("completed", True)))
+    if kind == "goal":
+        return LS.update_goal(payload.get("goal_name", ""), payload.get("progress"), payload.get("note", ""))
+    return life.log_generic(kind or "note", payload.get("note", ""))

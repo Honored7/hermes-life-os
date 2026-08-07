@@ -143,15 +143,18 @@ def _clear_memory_journal() -> list:
 def wipe_all() -> dict:
     cleared = []
     try:
-        save_sleep([]); cleared.append("sleep")
+        save_sleep([])
+        cleared.append("sleep")
     except Exception:
         pass
     try:
-        journal.clear_entries(); cleared.append("journal")
+        journal.clear_entries()
+        cleared.append("journal")
     except Exception:
         pass
     try:
-        ingest.clear_vitals(); cleared.append("vitals")
+        ingest.clear_vitals()
+        cleared.append("vitals")
     except Exception:
         pass
     cleared += ["memory:" + n for n in _clear_memory_journal()]
