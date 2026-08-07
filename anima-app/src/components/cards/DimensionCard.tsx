@@ -47,15 +47,22 @@ export function DimensionCard({
   const series = data?.series || [];
   const hasLine = series.filter((s: any) => s.value > 0).length >= 2;
   const read = cfg.copy[status];
+  const isListDim = model.id === 'goals' || model.id === 'habits';
   const quicks = (model.quickLogs || []).slice(0, 2);
   const decimals = unit === 'h' ? 1 : 0;
 
   return (
-    <motion.button type="button" onClick={onOpen}
-      whileHover={{ y: -3 }} whileTap={{ scale: 0.985 }}
+    <motion.div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-      className="group relative block w-full min-w-0 overflow-hidden rounded-card border border-line bg-surface p-5 text-left transition-colors hover:border-lantern/30"
-      style={{ backgroundImage: `radial-gradient(110% 90% at 100% 0%, color-mix(in srgb, ${sc} 12%, transparent), transparent 62%)` }}>
+      className="group relative block w-full min-w-0 cursor-pointer overflow-hidden rounded-card border border-line bg-surface p-5 text-left transition-colors hover:border-lantern/30"
+      style={{ backgroundImage: `radial-gradient(110% 90% at 100% 0%, color-mix(in srgb, ${sc} 12%, transparent), transparent 62%)` }}
+    >
       <span className="absolute inset-y-0 left-0 w-1 transition-colors duration-500" style={{ background: sc }} />
 
       <div className="flex min-w-0 items-center gap-3">
@@ -87,19 +94,28 @@ export function DimensionCard({
 
       <p className={'mt-3 font-wizard leading-snug text-muted ' + (hero ? 'text-[15px]' : 'text-[13px]')}>{read}</p>
 
-      {quicks.length > 0 && (
-        <div className="mt-3.5 flex flex-wrap gap-2">
-          {quicks.map((q, i) => (
-            <span key={i} role="button" tabIndex={0}
-              onClick={(e) => { e.stopPropagation(); onAction(q); }}
-              className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-all hover:-translate-y-0.5"
-              style={{ borderColor: `color-mix(in srgb, ${sc} 45%, var(--line))`, color: sc,
-                       backgroundColor: `color-mix(in srgb, ${sc} 9%, transparent)` }}>
-              {q.label}
-            </span>
-          ))}
+      {isListDim ? (
+        <div className="mt-3.5">
+          <span className="flex items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium"
+            style={{ borderColor: `color-mix(in srgb, ${sc} 45%, var(--line))`, color: sc, backgroundColor: `color-mix(in srgb, ${sc} 9%, transparent)` }}>
+            View & update →
+          </span>
         </div>
+      ) : (
+        quicks.length > 0 ? (
+          <div className="mt-3.5 flex flex-wrap gap-2">
+            {quicks.map((q, i) => (
+              <span key={i} role="button" tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); onAction(q); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onAction(q); } }}
+                className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-all hover:-translate-y-0.5"
+                style={{ borderColor: `color-mix(in srgb, ${sc} 45%, var(--line))`, color: sc, backgroundColor: `color-mix(in srgb, ${sc} 9%, transparent)` }}>
+                {q.label}
+              </span>
+            ))}
+          </div>
+        ) : null
       )}
-    </motion.button>
+    </motion.div>
   );
 }

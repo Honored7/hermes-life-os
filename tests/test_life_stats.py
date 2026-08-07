@@ -4,9 +4,11 @@ from wellness import life_stats as LS
 
 def _empty(monkeypatch):
     for fn in ["load_nutrition", "load_sleep", "load_fitness",
-               "load_focus", "load_mental", "load_habits", "load_goals"]:
+               "load_focus", "load_mental"]:
         monkeypatch.setattr(LS, fn, lambda: [])
     monkeypatch.setattr(LS, "get_recent_memory", lambda days=7: [])
+    monkeypatch.setattr(LS, "_habits", lambda: [])
+    monkeypatch.setattr(LS, "_goals", lambda: [])
     monkeypatch.setattr(LS.life, "get_hydration", lambda: {"today": 0, "goal": 8})
     monkeypatch.setattr(LS.life, "get_sleep", lambda: {"today": None, "avg_7d": 0})
 

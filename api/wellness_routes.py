@@ -132,7 +132,60 @@ async def life_log(request: Request):
     if kind == "gratitude":
         return LS.log_gratitude(payload.get("items", []))
     if kind == "habit":
-        return LS.update_habit(payload.get("habit_name", ""), bool(payload.get("completed", True)))
+        from wellness import goals as G
+        name = payload.get("habit_name") or payload.get("name", "")
+        done = bool(payload.get("completed", True))
+        r = LS.update_habit(name, done)
+        if done:
+            G.bump_habit_total(name)   # the habit feeds any goal that leans on it
+        return r
     if kind == "goal":
-        return LS.update_goal(payload.get("goal_name", ""), payload.get("progress"), payload.get("note", ""))
+        from wellness import goals as G
+        return G.upsert_goal(payload)
+    if kind == "goal_inc":
+        from wellness import goals as G
+        return G.increment_goal(payload.get("goal_name") or payload.get("name", ""))
+    if kind == "nutrition":
+        return LS.log_nutrition(
+            payload.get("food") or payload.get("name", ""),
+            payload.get("calories", 0),
+            payload.get("meal_time", ""),
+        )
+    if kind == "fitness":
+        return LS.log_fitness(
+            payload.get("workout_type") or payload.get("name", ""),
+            payload.get("duration_min") or payload.get("minutes", 0),
+        )
+    if kind == "focus":
+        return LS.log_focus(
+            payload.get("task") or payload.get("name", ""),
+            payload.get("duration_min") or payload.get("minutes", 25),
+        )
+    if kind == "goal_rename":
+        from wellness import goals as G
+        return G.rename_goal(payload.get("goal_name") or payload.get("name", ""), payload.get("new_name", ""))
+    if kind == "goal_delete":
+        from wellness import goals as G
+        return G.delete_goal(payload.get("goal_name") or payload.get("name", ""))
+    if kind == "habit_rename":
+        from wellness import life_stats as LS
+        return LS.rename_habit(payload.get("habit_name") or payload.get("name", ""), payload.get("new_name", ""))
+    if kind == "habit_delete":
+        from wellness import life_stats as LS
+        return LS.delete_habit(payload.get("habit_name") or payload.get("name", ""))
+    if kind == "habit_unmark":
+        from wellness import life_stats as LS
+        return LS.unmark_habit_today(payload.get("habit_name") or payload.get("name", ""))
+    if kind == "goal_add_step":
+        from wellness import goals as G
+        return G.add_goal_step(payload.get("goal_name") or payload.get("name", ""), payload.get("step_name", ""))
+    if kind == "goal_step":
+        from wellness import goals as G
+        return G.set_goal_step(payload.get("goal_name") or payload.get("name", ""), int(payload.get("index", -1)), bool(payload.get("done", True)))
     return life.log_generic(kind or "note", payload.get("note", ""))
+
+
+@router.get("/life/dims")
+async def life_dims():
+    from wellness.dims import dimension_records
+    return dimension_records()

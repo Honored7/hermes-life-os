@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getLifeStats, postLifeLog } from '../lib/api';
+import { getLifeStats, getDims, postLifeLog } from '../lib/api';
 import { DIM_BY_ID } from '../lib/dimensions';
 import { LIFE_MODELS } from '../lib/lifeModel';
 import { DimensionCard } from '../components/cards/DimensionCard';
@@ -14,40 +14,59 @@ const PATTERNS = {
   box: { inhale: 4, hold_in: 4, exhale: 4, hold_out: 4, cycles: 6 },
 };
 const PATTERN_LABEL = { unwind: 'Unwind', box: 'Box breath' } as const;
-
 const ORDER = ['sleep', 'hydration', 'nutrition', 'fitness', 'focus', 'mental', 'habits', 'goals'];
 const SPAN2 = new Set(['sleep', 'goals']);
 const LOG_KINDS = new Set(['water', 'sleep', 'nutrition', 'fitness', 'focus', 'stress', 'meditation', 'gratitude', 'habit', 'goal']);
 
 export function Life({ onCheckIn }: { onCheckIn?: () => void }) {
   const [stats, setStats] = useState<any>(null);
+  const [dims, setDims] = useState<any>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [breath, setBreath] = useState<null | 'unwind' | 'box'>(null);
+  const [toast, setToast] = useState<{ msg: string; err?: boolean; key: number } | null>(null);
 
-  const load = () => getLifeStats().then(setStats).catch(() => {});
-  useEffect(() => { load(); }, []);
+  const load = useCallback(async () => {
+    const [s, d] = await Promise.all([getLifeStats(), getDims()]);
+    setStats(s);
+    setDims(d);
+  }, []);
 
-  const aggregate = stats
-    ? 'Eight threads of one life — logged gently, read honestly.'
-    : 'Gathering your threads…';
+  useEffect(() => { load().catch(() => {}); }, [load]);
 
-  const onAction = async (a: { kind: string; payload?: any; pattern?: 'unwind' | 'box' }) => {
+  const showToast = (msg: string, err = false) => {
+    const key = Date.now();
+    setToast({ msg, err, key });
+    setTimeout(() => setToast((t) => (t && t.key === key ? null : t)), 2400);
+  };
+
+  const onAction = async (a: any) => {
     if (!a) return;
     if (a.kind === 'breathe') { setBreath(a.pattern || 'unwind'); return; }
     if (a.kind === 'checkin') { setOpenId(null); onCheckIn?.(); return; }
     if (LOG_KINDS.has(a.kind)) {
-      await postLifeLog(a.kind, a.payload || {});
-      await load();
+      try {
+        await postLifeLog(a.kind, a.payload || {});
+        await load();
+        showToast('Logged ✓');
+      } catch {
+        showToast('Could not log — try again', true);
+      }
     }
   };
 
-  const onLogged = async (kind: string, values: Record<string, any>) => {
-    await postLifeLog(kind, values);
-    await load();
+  const onLog = async (kind: string, payload: any) => {
+    try {
+      await postLifeLog(kind, payload);
+      await load();
+      showToast('Saved ✓');
+    } catch {
+      showToast('Could not save — try again', true);
+    }
   };
 
   const openCfg = openId ? DIM_BY_ID[openId] : null;
   const openModel = openId ? LIFE_MODELS[openId] : null;
+  const openRecords = openId && dims ? dims[openId] : null;
 
   return (
     <div className="relative h-full overflow-y-auto">
@@ -59,8 +78,9 @@ export function Life({ onCheckIn }: { onCheckIn?: () => void }) {
         <header>
           <p className="text-[11px] uppercase tracking-[0.25em] text-faint">the heart of it</p>
           <h1 className="mt-1 font-wizard text-[32px] leading-none">Your life, held together</h1>
-          <motion.p key={aggregate} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-            className="mt-2.5 max-w-sm font-wizard text-[15px] leading-snug text-muted">{aggregate}</motion.p>
+          <p className="mt-2.5 max-w-sm font-wizard text-[15px] leading-snug text-muted">
+            Eight threads of one life — logged gently, read honestly.
+          </p>
         </header>
 
         {!stats ? (
@@ -86,27 +106,31 @@ export function Life({ onCheckIn }: { onCheckIn?: () => void }) {
 
       <AnimatePresence>
         {openCfg && openModel && (
-          <DimensionDetail
-            cfg={openCfg} model={openModel} data={stats?.[openModel.id]}
-            onClose={() => setOpenId(null)}
-            onQuick={onAction}
+          <DimensionDetail cfg={openCfg} model={openModel} data={stats?.[openModel.id]}
+            records={openRecords} onClose={() => setOpenId(null)} onLog={onLog}
             onBreathe={() => setBreath('unwind')}
-            onCheckin={() => { setOpenId(null); onCheckIn?.(); }}
-            onLogged={onLogged}
-          />
+            onCheckin={() => { setOpenId(null); onCheckIn?.(); }} />
         )}
       </AnimatePresence>
 
       {breath && (
-        <BreathingSession
-          config={{ name: PATTERN_LABEL[breath], breathing_pattern: PATTERNS[breath] }}
+        <BreathingSession config={{ name: PATTERN_LABEL[breath], breathing_pattern: PATTERNS[breath] }}
           state="tending" severityBefore={0}
           onComplete={() => setBreath(null)} onClose={() => setBreath(null)}
           completeHeading="You gave yourself a moment."
           completeBody="However small, that tending matters. Carry its calm back with you."
-          completeLabel="Carry it with you"
-        />
+          completeLabel="Carry it with you" />
       )}
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div key={toast.key} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full px-5 py-2.5 text-sm font-medium shadow-xl"
+            style={{ background: toast.err ? 'var(--mood-angry)' : 'var(--sage)', color: 'var(--bg)' }}>
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

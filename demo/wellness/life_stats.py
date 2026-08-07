@@ -11,7 +11,7 @@ import time
 
 from storage import (
     load_nutrition, load_sleep, load_fitness,
-    load_focus, load_mental, load_habits, load_goals, get_recent_memory,
+    load_focus, load_mental, get_recent_memory,
     save_nutrition, save_fitness, save_focus, save_mental,
     save_habits, save_goals, write_memory,
 )
@@ -29,6 +29,22 @@ def _num(v):
         return float(v)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _goals():
+    try:
+        from storage import load_goals
+        return [g for g in (load_goals() or []) if (g.get('name') or '').strip()]
+    except Exception:
+        return []
+
+
+def _habits():
+    try:
+        from storage import load_habits
+        return load_habits()
+    except Exception:
+        return []
 
 
 def _last7() -> list:
@@ -57,8 +73,8 @@ def dimension_stats() -> dict:
     fitness = load_fitness()
     focus = load_focus()
     mental = load_mental()
-    habits = load_habits()
-    goals = load_goals()
+    habits = _habits()
+    goals = _goals()
     hyd_mem = [e for e in get_recent_memory(days=7) if e.get("type") == "hydration"]
 
     meals_w = [m for m in nutrition if _day(m) >= week_cut]
@@ -196,24 +212,53 @@ def log_gratitude(items):
     return {"logged": True}
 
 
+def _today_iso():
+    from datetime import date
+    return date.today().isoformat()
+
+
+def _streak_from(hist):
+    from datetime import date, timedelta
+    hs = set(hist)
+    d = date.today()
+    if d.isoformat() not in hs:      # grace: a missed *today* doesn't kill it yet
+        d = d - timedelta(days=1)
+    streak = 0
+    while d.isoformat() in hs:
+        streak += 1
+        d = d - timedelta(days=1)
+    return streak
+
+
 def update_habit(habit_name, completed=True):
-    from storage import load_habits
-    habits = load_habits()
-    found = False
-    for h in habits:
-        if h["name"].lower() == habit_name.lower():
-            h["streak"] = h.get("streak", 0) + 1 if completed else 0
-            h["last_done"] = _now()
-            h["best_streak"] = max(h.get("best_streak", 0), h["streak"])
-            found = True
-            break
-    if not found:
-        habits.append({"name": habit_name, "streak": 1 if completed else 0,
-                       "best_streak": 1 if completed else 0,
-                       "last_done": _now() if completed else None, "created": _now()})
+    from storage import load_habits, save_habits
+    habits = load_habits() or []
+    today = _today_iso()
+    h = next((x for x in habits if (x.get("name") or "").lower() == (habit_name or "").lower()), None)
+    if h is None:
+        h = {"name": habit_name, "streak": 0, "best_streak": 0, "total_done": 0,
+             "history": [], "created": today, "last_done": None}
+        habits.append(h)
+    hist = h.setdefault("history", [])
+    if not hist and _num(h.get("streak")) > 0:
+        # migrate: rebuild an approximate chain from the old streak so the flame survives
+        from datetime import date as _d, timedelta as _td
+        try:
+            base = _d.fromisoformat(h.get("last_done")) if h.get("last_done") else _d.today() - _td(days=1)
+        except (TypeError, ValueError):
+            base = _d.today() - _td(days=1)
+        for _ in range(int(_num(h.get("streak")))):
+            hist.append(base.isoformat())
+            base -= _td(days=1)
+    if completed and today not in hist:
+        hist.append(today)
+    if completed:
+        h["last_done"] = today
+    h["streak"] = _streak_from(hist)
+    h["best_streak"] = max(int(_num(h.get("best_streak"))), int(h["streak"]))
+    h["total_done"] = max(int(_num(h.get("total_done"))), len(hist))
     save_habits(habits)
     return {"logged": True}
-
 
 def update_goal(goal_name, progress=None, note=""):
     from storage import load_goals
@@ -239,4 +284,60 @@ def update_goal(goal_name, progress=None, note=""):
         goals.append({"name": goal_name, "progress": progress or 0, "created": _now(),
                       "last_updated": _now(), "last_note": note})
     save_goals(goals)
+    return {"logged": True}
+
+
+def rename_habit(old_name, new_name):
+    from storage import load_habits, save_habits, load_goals, save_goals
+    new_name = (new_name or "").strip()
+    if not new_name:
+        return {"logged": False}
+    habits = load_habits() or []
+    h = next((x for x in habits if (x.get("name") or "").lower() == (old_name or "").lower()), None)
+    if h is None:
+        return {"logged": False}
+    h["name"] = new_name
+    save_habits(habits)
+    goals = load_goals() or []
+    changed = False
+    for g in goals:
+        if g.get("source") == "habit:" + old_name:
+            g["source"] = "habit:" + new_name
+            changed = True
+    if changed:
+        save_goals(goals)
+    return {"logged": True}
+
+
+def delete_habit(name):
+    from storage import load_habits, save_habits, load_goals, save_goals
+    habits = load_habits() or []
+    kept = [x for x in habits if (x.get("name") or "").lower() != (name or "").lower()]
+    if len(kept) == len(habits):
+        return {"logged": False}
+    save_habits(kept)
+    goals = load_goals() or []
+    changed = False
+    for g in goals:
+        if g.get("source") == "habit:" + name:
+            g["source"] = None
+            changed = True
+    if changed:
+        save_goals(goals)
+    return {"logged": True}
+
+
+def unmark_habit_today(name):
+    from storage import load_habits, save_habits
+    habits = load_habits() or []
+    today = _today_iso()
+    h = next((x for x in habits if (x.get("name") or "").lower() == (name or "").lower()), None)
+    if h is None:
+        return {"logged": False}
+    hist = h.setdefault("history", [])
+    if today in hist:
+        hist.remove(today)
+    h["streak"] = _streak_from(hist)
+    h["last_done"] = max(hist) if hist else None
+    save_habits(habits)
     return {"logged": True}

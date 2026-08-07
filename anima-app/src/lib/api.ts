@@ -265,3 +265,8 @@ export async function postLifeLog(kind: string, payload: Record<string, any> = {
   });
   return res.json();
 }
+
+export async function getDims(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/dims`);
+  return res.json();
+}
