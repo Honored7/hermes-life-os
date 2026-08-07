@@ -31,25 +31,7 @@ async function readSSE(
 }
 
 /** Wizard free-form chat, token by token. */
-export async function streamWizardChat(
-  message: string,
-  onChunk: (text: string) => void,
-): Promise<void> {
-  const response = await fetch(`${API_BASE}/api/v1/wizard/chat/stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
-  });
-  await readSSE(response, (data) => {
-    if (data === '[DONE]') return;
-    try {
-      const parsed = JSON.parse(data);
-      if (parsed.text) onChunk(parsed.text);
-    } catch { /* ignore malformed */ }
-  });
-}
 
-/** Check in with a mood: intervention data instantly, then the voice streams. */
 export async function streamCheckIn(
   payload: { state: string; severity: number; message: string },
   handlers: {
@@ -123,12 +105,7 @@ export async function streamStepNarration(
 }
 
 /** Today's picture across the life dimensions. */
-export async function getLifeToday(): Promise<any> {
-  const res = await fetch(`${API_BASE}/api/v1/life/today`);
-  return res.json();
-}
 
-/** Log something toward a dimension. */
 export async function logLife(payload: {
   dimension: string;
   glasses?: number;
@@ -235,10 +212,6 @@ export async function streamCompanionChat(
 }
 
 /** Per-dimension series + guarded cross-sight — powers the Life cards. */
-export async function getDimensionStats(): Promise<any> {
-  const res = await fetch(`${API_BASE}/api/v1/life/dimensions`);
-  return res.json();
-}
 
 export async function getJournal(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/life/journal`);

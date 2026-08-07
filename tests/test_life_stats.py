@@ -3,7 +3,7 @@ from wellness import life_stats as LS
 
 
 def _empty(monkeypatch):
-    for fn in ["load_nutrition", "load_sleep", "load_hydration", "load_fitness",
+    for fn in ["load_nutrition", "load_sleep", "load_fitness",
                "load_focus", "load_mental", "load_habits", "load_goals"]:
         monkeypatch.setattr(LS, fn, lambda: [])
     monkeypatch.setattr(LS, "get_recent_memory", lambda days=7: [])

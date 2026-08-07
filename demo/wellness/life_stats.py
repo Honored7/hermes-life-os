@@ -7,12 +7,17 @@ report math, instead of one generic score.
 """
 from __future__ import annotations
 from datetime import date, timedelta
+import time
 
 from storage import (
-    load_nutrition, load_sleep, load_hydration, load_fitness,
+    load_nutrition, load_sleep, load_fitness,
     load_focus, load_mental, load_habits, load_goals, get_recent_memory,
+    save_nutrition, save_fitness, save_focus, save_mental,
+    save_habits, save_goals, write_memory,
 )
 from wellness import life
+
+
 
 
 def _day(e) -> str:
@@ -128,11 +133,6 @@ def dimension_stats() -> dict:
 
 
 # ── write side: real logs, mirroring the original storage writes ──────
-import time
-from storage import (
-    save_nutrition, save_fitness, save_focus, save_mental,
-    save_habits, save_goals, write_memory,
-)
 
 
 def _now() -> str:
