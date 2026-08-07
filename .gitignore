@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 anima-app/dist/
 anima-app/node_modules/
+.env
