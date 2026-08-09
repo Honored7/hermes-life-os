@@ -13,7 +13,7 @@ from storage import (
     load_nutrition, load_sleep, load_fitness,
     load_focus, load_mental, get_recent_memory,
     save_nutrition, save_fitness, save_focus, save_mental,
-    save_habits, save_goals, write_memory,
+    save_goals, write_memory,
 )
 from wellness import life
 
@@ -54,7 +54,7 @@ def _last7() -> list:
 def _series(entries, value_fn, agg="sum"):
     out = []
     for d in _last7():
-        vals = [v for v in (value_fn(e) for e in entries if _day(e) == d) if v is not None]
+        vals = [_num(v) for v in (value_fn(e) for e in entries if _day(e) == d) if v is not None]
         if not vals:
             out.append({"date": d, "value": 0})
         else:
@@ -91,43 +91,43 @@ def dimension_stats() -> dict:
         "hydration": {
             "unit": "glasses", "target": hydration.get("goal", 8), "lower_better": False,
             "today": hydration.get("today", 0),
-            "series": _series(hyd_mem, lambda e: e.get("glasses")),
+            "series": _series(hyd_mem, lambda e: _num(e.get("glasses"))),
             "week": {"glasses_today": hydration.get("today", 0), "goal": hydration.get("goal", 8)},
             "list": [],
         },
         "sleep": {
             "unit": "h", "target": 7.5, "lower_better": False,
             "today": (sleep.get("today") or {}).get("hours"),
-            "series": _series(load_sleep(), lambda e: e.get("hours")),
+            "series": _series(load_sleep(), lambda e: _num(e.get("hours"))),
             "week": {"avg_hours": sleep.get("avg_7d", 0), "nights": len(load_sleep()[-7:])},
             "list": [],
         },
         "nutrition": {
             "unit": "kcal", "target": 2000, "lower_better": False,
-            "today": sum(m.get("calories", 0) for m in nutrition if _day(m) == today),
-            "series": _series(nutrition, lambda e: e.get("calories")),
-            "week": {"meals": len(meals_w), "total_cal": sum(m.get("calories", 0) for m in meals_w)},
+            "today": sum(_num(m.get("calories")) for m in nutrition if _day(m) == today),
+            "series": _series(nutrition, lambda e: _num(e.get("calories"))),
+            "week": {"meals": len(meals_w), "total_cal": sum(_num(m.get("calories")) for m in meals_w)},
             "list": [m.get("food", "") for m in nutrition[-5:]],
         },
         "fitness": {
             "unit": "min", "target": 30, "lower_better": False,
-            "today": sum(f.get("duration", 0) for f in fitness if _day(f) == today),
-            "series": _series(fitness, lambda e: e.get("duration")),
+            "today": sum(_num(f.get("duration")) for f in fitness if _day(f) == today),
+            "series": _series(fitness, lambda e: _num(e.get("duration"))),
             "week": {"workouts": len(fit_w), "types": sorted(set(f.get("type", "") for f in fit_w))},
             "list": [f.get("type", "") for f in fitness[-5:]],
         },
         "focus": {
             "unit": "min", "target": 90, "lower_better": False,
-            "today": sum(f.get("duration", 0) for f in focus if _day(f) == today),
-            "series": _series(focus, lambda e: e.get("duration")),
-            "week": {"sessions": len(focus_w), "total_min": sum(f.get("duration", 0) for f in focus_w)},
+            "today": sum(_num(f.get("duration")) for f in focus if _day(f) == today),
+            "series": _series(focus, lambda e: _num(e.get("duration"))),
+            "week": {"sessions": len(focus_w), "total_min": sum(_num(f.get("duration")) for f in focus_w)},
             "list": [f.get("task", "") for f in focus[-5:]],
         },
         "mental": {
             "unit": "stress /10", "target": 4, "lower_better": True,
-            "today": round(sum(m.get("score", 0) for m in stress_today) / len(stress_today), 1) if stress_today else None,
+            "today": round(sum(_num(m.get("score")) for m in stress_today) / len(stress_today), 1) if stress_today else None,
             "series": _series([m for m in mental if m.get("type") == "stress"], lambda e: e.get("score"), agg="avg"),
-            "week": {"avg_stress": round(sum(m.get("score", 0) for m in stress_w) / len(stress_w), 1) if stress_w else 0,
+            "week": {"avg_stress": round(sum(_num(m.get("score")) for m in stress_w) / len(stress_w), 1) if stress_w else 0,
                      "meditations": len(med_w)},
             "list": [],
         },

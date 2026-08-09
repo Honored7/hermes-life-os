@@ -182,6 +182,24 @@ async def life_log(request: Request):
     if kind == "goal_step":
         from wellness import goals as G
         return G.set_goal_step(payload.get("goal_name") or payload.get("name", ""), int(payload.get("index", -1)), bool(payload.get("done", True)))
+    if kind == "sleep_delete":
+        from wellness.sleep_report import delete_sleep
+        return delete_sleep(payload.get("date", ""))
+    if kind == "water_set":
+        from wellness.body_report import set_hydration
+        return set_hydration(payload.get("glasses", 0))
+    if kind == "nutrition_delete":
+        from wellness.body_report import delete_meal
+        return delete_meal(payload.get("index", -1))
+    if kind == "fitness_delete":
+        from wellness.body_report import delete_workout
+        return delete_workout(payload.get("index", -1))
+    if kind == "focus_delete":
+        from wellness.body_report import delete_focus
+        return delete_focus(payload.get("index", -1))
+    if kind == "mental_delete":
+        from wellness.body_report import delete_mental
+        return delete_mental(payload.get("index", -1))
     return life.log_generic(kind or "note", payload.get("note", ""))
 
 
@@ -189,3 +207,44 @@ async def life_log(request: Request):
 async def life_dims():
     from wellness.dims import dimension_records
     return dimension_records()
+
+@router.get("/life/sleep")
+async def life_sleep():
+    from wellness.sleep_report import sleep_report
+    return sleep_report()
+
+
+@router.get("/life/hydration")
+async def life_hydration():
+    from wellness.body_report import hydration_report
+    return hydration_report()
+
+
+@router.get("/life/nutrition")
+async def life_nutrition():
+    from wellness.body_report import nutrition_report
+    return nutrition_report()
+
+
+@router.get("/life/fitness")
+async def life_fitness():
+    from wellness.body_report import fitness_report
+    return fitness_report()
+
+
+@router.get("/life/focus")
+async def life_focus():
+    from wellness.body_report import focus_report
+    return focus_report()
+
+
+@router.get("/life/mental")
+async def life_mental():
+    from wellness.body_report import mental_report
+    return mental_report()
+
+
+@router.get("/insights/mirror")
+async def insights_mirror():
+    from wellness.insights import mirror
+    return mirror()

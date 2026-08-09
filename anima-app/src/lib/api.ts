@@ -270,3 +270,35 @@ export async function getDims(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/life/dims`);
   return res.json();
 }
+
+export async function getSleepReport(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/sleep`);
+  return res.json();
+}
+
+export async function getHydrationReport(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/hydration`);
+  return res.json();
+}
+export async function getNutritionReport(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/nutrition`);
+  return res.json();
+}
+
+export async function getFitnessReport(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/fitness`);
+  return res.json();
+}
+export async function getFocusReport(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/focus`);
+  return res.json();
+}
+export async function getMentalReport(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/life/mental`);
+  return res.json();
+}
+
+export async function getMirror(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/insights/mirror`);
+  return res.json();
+}

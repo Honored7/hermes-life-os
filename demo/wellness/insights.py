@@ -274,3 +274,123 @@ def mood_trend(days: int = 21) -> dict:
         "this_count": len(this_rows),
         "last_count": len(last_rows),
     }
+
+
+
+def _corr(xs, ys):
+    n = len(xs)
+    if n < 4:
+        return None
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    sx = sum((x - mx) ** 2 for x in xs) ** 0.5
+    sy = sum((y - my) ** 2 for y in ys) ** 0.5
+    if sx == 0 or sy == 0:
+        return None
+    return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / (sx * sy)
+
+
+def mirror():
+    """The week's weave, the threads between, and what's rising or easing."""
+    from datetime import date, timedelta
+    from storage import load_sleep, load_fitness, load_focus, get_recent_memory
+
+    def _n(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
+
+    days = [(date.today() - timedelta(days=i)).isoformat() for i in range(13, -1, -1)]
+    mood = {}
+    stress = {}
+    sleep = {}
+    move = {}
+    focus = {}
+    for e in (get_recent_memory(days=14) or []):
+        d = str(e.get("date") or "")
+        if e.get("type") in ("checkin", "mood"):
+            mv = e.get("mood")
+            sev = e.get("severity")
+            val = _n(mv) if isinstance(mv, (int, float)) else (10 - _n(sev if sev is not None else 5))
+            mood.setdefault(d, []).append(val)
+        if e.get("type") == "stress" and e.get("score") is not None:
+            stress.setdefault(d, []).append(_n(e.get("score")))
+    for x in (load_sleep() or []):
+        if _n(x.get("hours")) > 0:
+            sleep[str(x.get("date") or "")] = _n(x.get("hours"))
+    for x in (load_fitness() or []):
+        move[str(x.get("date") or "")] = move.get(str(x.get("date") or ""), 0) + _n(x.get("duration"))
+    for x in (load_focus() or []):
+        focus[str(x.get("date") or "")] = focus.get(str(x.get("date") or ""), 0) + _n(x.get("duration"))
+    mood = {d: sum(v) / len(v) for d, v in mood.items()}
+    stress = {d: sum(v) / len(v) for d, v in stress.items()}
+
+    def pair(a, b):
+        ds = [d for d in days if d in a and d in b]
+        return [a[d] for d in ds], [b[d] for d in ds]
+
+    threads = []
+    def add_thread(an, bn, r, pos, neg):
+        if r is None or abs(r) < 0.3:
+            return
+        threads.append({"a": an, "b": bn, "r": round(r, 2), "strength": round(abs(r), 2),
+                        "text": pos if r > 0 else neg})
+    xs, ys = pair(sleep, mood)
+    add_thread("sleep", "mood", _corr(xs, ys),
+        "On nights you sleep longer, your mood runs brighter. Sleep is your keystone — protect it.",
+        "Curiously, longer sleep has lined up with lower mood lately. Worth a gentle look.")
+    xs, ys = pair(move, mood)
+    add_thread("movement", "mood", _corr(xs, ys),
+        "Days you move, your mood follows. Motion is medicine for you.",
+        "Movement and mood have drifted apart lately — rest may matter more than exercise right now.")
+    xs, ys = pair(sleep, focus)
+    add_thread("sleep", "focus", _corr(xs, ys),
+        "Good nights feed your focus. The quiet hours are doing quiet work.",
+        "Focus hasn't tracked sleep lately — something else is holding your attention.")
+    xs, ys = pair(stress, sleep)
+    add_thread("stress", "sleep", _corr(xs, ys),
+        "Low stress and good sleep travel together for you.",
+        "Heavy-stress days line up with shorter sleep. Tending the mind would tend the night.")
+    xs, ys = pair(stress, mood)
+    add_thread("stress", "mood", _corr(xs, ys),
+        "Calm days and bright days go together for you.",
+        "When stress rises, your mood dips. Naming the weight is the first kindness.")
+
+    tapestry = []
+    for d in days[-7:]:
+        tapestry.append({
+            "date": d,
+            "mood": round(mood[d] / 10, 2) if d in mood else None,
+            "sleep": round(min(sleep[d] / 9, 1), 2) if d in sleep else None,
+            "move": round(min(move.get(d, 0) / 60, 1), 2) if d in move else None,
+            "focus": round(min(focus.get(d, 0) / 120, 1), 2) if d in focus else None,
+            "calm": round(1 - stress[d] / 10, 2) if d in stress else None,
+        })
+
+    this, prev = days[7:], days[:7]
+    def avg(dd, rng):
+        vals = [dd[d] for d in rng if d in dd]
+        return sum(vals) / len(vals) if vals else None
+    trends = []
+    for name, dd in [("mood", mood), ("sleep", sleep), ("movement", move), ("focus", focus), ("stress", stress)]:
+        a, b = avg(dd, this), avg(dd, prev)
+        if a is None or b is None:
+            dir_ = "steady"
+        elif a > b * 1.08:
+            dir_ = "up"
+        elif a < b * 0.92:
+            dir_ = "down"
+        else:
+            dir_ = "steady"
+        trends.append({"dim": name, "dir": dir_})
+
+    reflection = "The mirror is still gathering your days. Live a little longer and it will start to speak."
+    question = None
+    if threads:
+        t = max(threads, key=lambda x: x["strength"])
+        reflection = f"The strongest thread I can see is between {t['a']} and {t['b']}. {t['text']}"
+        question = f"What would change if you protected your {t['a']} this week?"
+
+    return {"tapestry": tapestry, "threads": threads, "trends": trends,
+            "reflection": reflection, "question": question}

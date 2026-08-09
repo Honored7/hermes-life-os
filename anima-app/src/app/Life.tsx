@@ -8,6 +8,7 @@ import { DimensionDetail } from '../components/cards/DimensionDetail';
 import { JournalCard } from '../components/cards/JournalCard';
 import { BreathingSession } from '../components/session/BreathingSession';
 import { MotifMark } from '../components/brand/MotifMark';
+import { Bells } from '../components/bells/Bells';
 
 const PATTERNS = {
   unwind: { inhale: 4, hold_in: 2, exhale: 6, hold_out: 0, cycles: 5 },
@@ -70,6 +71,7 @@ export function Life({ onCheckIn }: { onCheckIn?: () => void }) {
 
   return (
     <div className="relative h-full overflow-y-auto">
+      <Bells />
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-lantern blur-[120px] opacity-10" />
       </div>
