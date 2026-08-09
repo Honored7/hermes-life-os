@@ -302,3 +302,8 @@ export async function getMirror(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/insights/mirror`);
   return res.json();
 }
+
+export async function getKeepsake(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/you/keepsake`);
+  return res.json();
+}

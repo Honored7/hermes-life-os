@@ -248,3 +248,9 @@ async def life_mental():
 async def insights_mirror():
     from wellness.insights import mirror
     return mirror()
+
+
+@router.get("/you/keepsake")
+async def you_keepsake():
+    from wellness.you import keepsake
+    return keepsake()

@@ -159,3 +159,135 @@ def wipe_all() -> dict:
         pass
     cleared += ["memory:" + n for n in _clear_memory_journal()]
     return {"cleared": cleared}
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _valid_date(s):
+    from datetime import date
+    try:
+        date.fromisoformat(s)
+        return True
+    except Exception:
+        return False
+
+
+def _hour_of(m):
+    ts = m.get("ts")
+    if isinstance(ts, (int, float)):
+        import time
+        return time.localtime(ts).tm_hour
+    if isinstance(ts, str) and "T" in ts:
+        try:
+            return int(ts.split("T")[1][:2])
+        except Exception:
+            return None
+    t = m.get("time")
+    if isinstance(t, str) and ":" in t:
+        try:
+            return int(t.split(":")[0])
+        except Exception:
+            return None
+    return None
+
+
+def _hour_word(h):
+    if 5 <= h <= 11:
+        return "the morning"
+    if 12 <= h <= 16:
+        return "the afternoon"
+    if 17 <= h <= 22:
+        return "the evening"
+    return "the night"
+
+
+def _moments(mem):
+    out = []
+    for m in mem:
+        t = m.get("type")
+        txt = m.get("content") or ""
+        if t in ("checkin", "mood"):
+            out.append({"date": m.get("date"), "kind": "presence", "text": txt or "you checked in"})
+        elif t == "journal":
+            out.append({"date": m.get("date"), "kind": "words", "text": txt[:80] or "a word you wrote"})
+        elif t == "gratitude":
+            items = m.get("items") or []
+            out.append({"date": m.get("date"), "kind": "light",
+                        "text": ", ".join(str(i) for i in items) if items else "a good thing"})
+    return out[-24:]
+
+
+def keepsake():
+    """What Motif holds of you — moments, a letter, quiet recognitions."""
+    from datetime import date
+    from storage import get_recent_memory, load_habits, load_goals
+
+    mem = get_recent_memory(days=120) or []
+    checkins = [m for m in mem if m.get("type") in ("checkin", "mood")]
+    stresses = [m for m in mem if m.get("type") == "stress"]
+    grat = [m for m in mem if m.get("type") == "gratitude"]
+    meds = [m for m in mem if m.get("type") == "meditation"]
+    days = {str(m.get("date")) for m in mem if m.get("date")}
+
+    recognitions = []
+    if len(checkins) >= 20:
+        recognitions.append(f"you've checked in {len(checkins)} times — showing up is the whole practice.")
+    habits = load_habits() or []
+    best = next((h for h in habits if (h.get("best_streak") or 0) >= 7), None)
+    if best:
+        recognitions.append(f"you kept {best.get('name')} for {best.get('best_streak')} days. that's not luck; that's you.")
+    goals = load_goals() or []
+    completed = [g for g in goals if _num(g.get("progress")) >= 100]
+    if completed:
+        recognitions.append(f"you've completed {len(completed)} goal(s). finished things live here now.")
+    if len(stresses) >= 5:
+        recognitions.append(f"you've named your stress {len(stresses)} times instead of carrying it silently.")
+    if len(grat) >= 3:
+        recognitions.append(f"you've kept {len(grat)} good things. gratitude, practiced.")
+    if len(meds) >= 3:
+        recognitions.append(f"{len(meds)} moments of stillness, chosen on purpose.")
+    try:
+        ds = [date.fromisoformat(d) for d in days if _valid_date(d)]
+        if ds:
+            span = (date.today() - min(ds)).days + 1
+            if span >= 3:
+                recognitions.append(f"you've been tending this for {span} days.")
+    except Exception:
+        pass
+
+    letter = ["I've been watching, the way a companion does — not to judge. Just to know you."]
+    hours = {}
+    for m in checkins:
+        h = _hour_of(m)
+        if h is not None:
+            hours[h] = hours.get(h, 0) + 1
+    if hours:
+        letter.append(f"You most often come to me around {_hour_word(max(hours, key=hours.get))}.")
+    active = [h for h in habits if (h.get("streak") or 0) > 0]
+    if active:
+        letter.append("The thread you keep tending is " + ", ".join(str(h.get("name")) for h in active[:2]) + ".")
+    if stresses:
+        letter.append("And on the heavy days, you didn't hide the weight — you named it. That takes more courage than it sounds like.")
+    letter.append("Whatever the numbers say, the pattern I see is someone trying. That isn't small. That's everything.")
+
+    self_knowledge = []
+    try:
+        from wellness.insights import mirror
+        for t in (mirror().get("threads") or [])[:2]:
+            if t.get("text"):
+                self_knowledge.append(t["text"])
+    except Exception:
+        pass
+
+    return {
+        "moments": _moments(mem),
+        "letter": letter,
+        "recognitions": recognitions[:6],
+        "self_knowledge": self_knowledge,
+        "presence": {"checkins": len(checkins), "days": len(days)},
+    }
