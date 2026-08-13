@@ -307,3 +307,18 @@ export async function getKeepsake(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/you/keepsake`);
   return res.json();
 }
+
+export async function getClimate(lens: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/insights/climate?lens=${lens}`);
+  return res.json();
+}
+
+export async function getTodayBriefing(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/today/briefing`);
+  return res.json();
+}
+
+export async function getTodayAlive(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/today/alive`);
+  return res.json();
+}

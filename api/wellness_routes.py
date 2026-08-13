@@ -254,3 +254,21 @@ async def insights_mirror():
 async def you_keepsake():
     from wellness.you import keepsake
     return keepsake()
+
+
+@router.get("/insights/climate")
+async def insights_climate(lens: str = "start"):
+    from wellness.insights import climate
+    return climate(lens)
+
+
+@router.get("/today/briefing")
+async def today_briefing():
+    from wellness.today_brief import briefing
+    return briefing()
+
+
+@router.get("/today/alive")
+async def today_alive():
+    from wellness.today_brief import alive
+    return alive()

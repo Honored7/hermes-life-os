@@ -394,3 +394,186 @@ def mirror():
 
     return {"tapestry": tapestry, "threads": threads, "trends": trends,
             "reflection": reflection, "question": question}
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _climate_data(lens):
+    from datetime import date, timedelta
+    from storage import (load_sleep, load_fitness, load_focus,
+                         load_nutrition, get_recent_memory)
+    mem = get_recent_memory(days=400) or []
+    sleep = {}
+    stress = {}
+    mood = {}
+    move = {}
+    water = {}
+    meals = {}
+    focus = {}
+    journal = {}
+    grat = {}
+    for e in mem:
+        d = str(e.get("date") or "")
+        if not d:
+            continue
+        t = e.get("type")
+        if t in ("checkin", "mood"):
+            mv = e.get("mood")
+            sev = e.get("severity")
+            val = _num(mv) if isinstance(mv, (int, float)) else (10 - _num(sev if sev is not None else 5))
+            mood.setdefault(d, []).append(val)
+        elif t == "stress" and e.get("score") is not None:
+            stress.setdefault(d, []).append(_num(e.get("score")))
+        elif t == "journal":
+            journal[d] = journal.get(d, 0) + 1
+        elif t == "gratitude":
+            grat[d] = grat.get(d, 0) + 1
+        elif t == "hydration":
+            water[d] = max(water.get(d, 0), _num(e.get("glasses")))
+    for x in (load_sleep() or []):
+        if _num(x.get("hours")) > 0:
+            sleep[str(x.get("date") or "")] = _num(x.get("hours"))
+    for x in (load_fitness() or []):
+        move[str(x.get("date") or "")] = move.get(str(x.get("date") or ""), 0) + _num(x.get("duration"))
+    for x in (load_focus() or []):
+        focus[str(x.get("date") or "")] = focus.get(str(x.get("date") or ""), 0) + _num(x.get("duration"))
+    for x in (load_nutrition() or []):
+        meals[str(x.get("date") or "")] = meals.get(str(x.get("date") or ""), 0) + 1
+    mood = {d: sum(v) / len(v) for d, v in mood.items()}
+    stress = {d: sum(v) / len(v) for d, v in stress.items()}
+    all_days = sorted(set(sleep) | set(mood) | set(move) | set(stress) | set(focus) | set(meals) | set(water) | set(journal) | set(grat))
+    if not all_days:
+        return None
+    today = date.today()
+    rng_start = today - timedelta(days=29) if lens == "30" else date.fromisoformat(all_days[0])
+    days = [d for d in all_days if date.fromisoformat(d) >= rng_start]
+    if not days:
+        return None
+    now_cut = today - timedelta(days=13)
+    now_days = [d for d in days if date.fromisoformat(d) >= now_cut]
+    then_days = [d for d in days if date.fromisoformat(d) < now_cut] if lens == "30" else days[:14]
+
+    def avg(series, dl):
+        vals = [series[d] for d in dl if d in series]
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    mood_now = [d for d in now_days if d in mood]
+    return {
+        "span": len(days), "first": all_days[0],
+        "sleep_t": avg(sleep, then_days), "sleep_n": avg(sleep, now_days),
+        "stress_t": avg(stress, then_days), "stress_n": avg(stress, now_days),
+        "mood_t": avg(mood, then_days), "mood_n": avg(mood, now_days),
+        "move_t": avg(move, then_days), "move_n": avg(move, now_days),
+        "water_n": avg(water, now_days), "meals_n": avg(meals, now_days),
+        "focus_t": avg(focus, then_days), "focus_n": avg(focus, now_days),
+        "journal_n": sum(journal.get(d, 0) for d in now_days),
+        "grat_n": sum(grat.get(d, 0) for d in now_days),
+        "heavy_frac": round(sum(1 for d in mood_now if mood[d] <= 4) / len(mood_now), 2) if mood_now else None,
+    }
+
+
+def _card(cid, title, obs):
+    if not obs:
+        return None
+    tone, weight, finding, proof, meaning, action = max(obs, key=lambda o: o[1])
+    return {"id": cid, "title": title, "tone": tone, "score": weight,
+            "finding": finding, "proof": proof, "meaning": meaning, "action": action}
+
+
+def climate(lens="start"):
+    from storage import load_habits, load_goals
+    D = _climate_data(lens)
+    links = ["sleep", "hydration", "nutrition", "fitness", "focus", "mental", "habits", "goals"]
+    if not D:
+        return {"lens": lens, "span": 0, "headline": "The mirror is still gathering you. Live a little; then come back.",
+                "cards": [], "steady": [], "empty": ["Rest & recovery", "Body & energy", "Mind & heart", "Momentum & direction"], "links": links}
+
+    A_REST = {"kind": "habit", "payload": {"habit_name": "Wind-down breath", "completed": False}, "label": "start a wind-down habit"}
+    A_BODY = {"kind": "habit", "payload": {"habit_name": "A short daily walk", "completed": False}, "label": "start a daily walk"}
+    A_MIND = {"kind": "habit", "payload": {"habit_name": "Name one feeling daily", "completed": False}, "label": "start naming feelings"}
+    A_MOM = {"kind": "habit", "payload": {"habit_name": "25 quiet minutes", "completed": False}, "label": "protect quiet minutes"}
+
+    obs = []
+    if D["stress_n"] is not None and D["stress_n"] >= 6:
+        obs.append(("attention", 0.9, f"Stress has been a frequent visitor — around {D['stress_n']}/10 lately.",
+                    f"stress {D['stress_t']} then → {D['stress_n']} now" if D["stress_t"] is not None else f"stress ~{D['stress_n']}/10 recently",
+                    "That's worth knowing, and worth tending. Rest is where it softens first.", A_REST))
+    if D["sleep_n"] is not None and D["sleep_n"] < 6.5:
+        obs.append(("attention", 0.8, f"Sleep has been running short — about {D['sleep_n']}h.",
+                    f"sleep {D['sleep_t']}h then → {D['sleep_n']}h now" if D["sleep_t"] is not None else f"~{D['sleep_n']}h recently",
+                    "Sleep is your keystone; even thirty more minutes changes the day.", A_REST))
+    if D["sleep_n"] is not None and D["sleep_n"] >= 7 and (D["sleep_t"] is None or D["sleep_n"] >= D["sleep_t"]):
+        obs.append(("strength", 0.7, f"You've been sleeping like someone who tends to themselves — {D['sleep_n']}h lately.",
+                    f"sleep {D['sleep_t']}h then → {D['sleep_n']}h now" if D["sleep_t"] is not None else f"~{D['sleep_n']}h recently",
+                    "Protect this; it's quietly powering everything else.", None))
+    rest = _card("rest", "Rest & recovery", obs)
+
+    obs = []
+    if D["move_n"] is not None and D["move_n"] < 10:
+        obs.append(("attention", 0.7, "Movement has been scarce — a few minutes most days.",
+                    f"movement {D['move_t']} then → {int(D['move_n'])} min now" if D["move_t"] is not None else "little movement logged lately",
+                    "Your mood tends to follow your motion. Even a walk counts.", A_BODY))
+    elif D["move_n"] is not None and D["move_n"] >= 20:
+        obs.append(("strength", 0.7, f"You've been moving regularly — ~{int(D['move_n'])} min on a typical day.",
+                    f"movement {D['move_t']} then → {int(D['move_n'])} min now" if D["move_t"] is not None else f"~{int(D['move_n'])} min/day",
+                    "Motion is medicine for you. Keep the rhythm.", None))
+    if D["water_n"] is not None and D["water_n"] < 5:
+        obs.append(("attention", 0.5, f"Water has been light — around {D['water_n']} glasses a day.",
+                    f"~{D['water_n']} glasses/day recently",
+                    "Hydration is the quietest win; the first glass is the kindest.", A_BODY))
+    body = _card("body", "Body & energy", obs)
+
+    obs = []
+    if D["heavy_frac"] is not None and D["heavy_frac"] >= 0.5:
+        obs.append(("attention", 0.9, f"Heavy feelings have been frequent — {int(D['heavy_frac'] * 100)}% of recent check-ins.",
+                    f"mood {D['mood_t']} then → {D['mood_n']} now" if D["mood_t"] is not None else "recent mood leans heavy",
+                    "You may not notice from inside; that's the point of a mirror. It's worth tending, gently.", A_MIND))
+    elif D["mood_n"] is not None and D["mood_n"] >= 6.5:
+        obs.append(("strength", 0.7, f"Your mood has been bright — around {D['mood_n']}/10.",
+                    f"mood {D['mood_t']} then → {D['mood_n']} now" if D["mood_t"] is not None else f"~{D['mood_n']}/10",
+                    "Whatever you're doing, it's working. Notice it so you can repeat it.", None))
+    if D["grat_n"] >= 3 or D["journal_n"] >= 3:
+        obs.append(("strength", 0.5, f"You keep putting feelings into words — {D['journal_n']} journal, {D['grat_n']} gratitude lately.",
+                    "you write things down",
+                    "Naming feelings is a practice; you're doing it.", None))
+    mind = _card("mind", "Mind & heart", obs)
+
+    obs = []
+    habits = load_habits() or []
+    goals = load_goals() or []
+    active = [h for h in habits if (h.get("streak") or 0) > 0]
+    moving = [g for g in goals if 0 < _num(g.get("progress")) < 100]
+    if D["focus_n"] is not None and D["focus_n"] >= 25:
+        obs.append(("strength", 0.6, f"You've been protecting quiet — ~{int(D['focus_n'])} min of focus on a typical day.",
+                    f"focus {D['focus_t']} then → {int(D['focus_n'])} min now" if D["focus_t"] is not None else f"~{int(D['focus_n'])} min/day",
+                    "Protected attention is rare. You're making it.", None))
+    if active:
+        obs.append(("strength", 0.6, f"You're keeping {len(active)} habit(s) alive right now.",
+                    ", ".join(str(h.get("name")) for h in active[:2]),
+                    "Consistency is the whole game; you're playing.", None))
+    if not active and not moving and (D["focus_n"] or 0) < 10:
+        obs.append(("attention", 0.5, "Momentum has been quiet — no live habits or moving goals right now.",
+                    "no active habits or goals",
+                    "A single small goal would give the days a thread. Want one?", A_MOM))
+    mom = _card("momentum", "Momentum & direction", obs)
+
+    titles = ["Rest & recovery", "Body & energy", "Mind & heart", "Momentum & direction"]
+    allc = [rest, body, mind, mom]
+    cards = sorted([c for c in allc if c and c["score"] >= 0.4], key=lambda c: -c["score"])[:4]
+    steady = [t for t, c in zip(titles, allc) if c and c["score"] < 0.4]
+    empty = [t for t, c in zip(titles, allc) if c is None]
+
+    m_t, m_n = D["mood_t"], D["mood_n"]
+    if m_t is not None and m_n is not None:
+        word = "rising" if m_n > m_t + 0.4 else ("asking for care" if m_n < m_t - 0.4 else "steady")
+    else:
+        word = "steady"
+    scope = "the last 30 days" if lens == "30" else f"the {D['span']} days since you began"
+    return {"lens": lens, "span": D["span"], "first": D["first"],
+            "headline": f"Over {scope}, the shape of you is {word}.",
+            "cards": cards, "steady": steady, "empty": empty, "links": links}

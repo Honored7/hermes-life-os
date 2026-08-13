@@ -19,7 +19,7 @@ const ORDER = ['sleep', 'hydration', 'nutrition', 'fitness', 'focus', 'mental', 
 const SPAN2 = new Set(['sleep', 'goals']);
 const LOG_KINDS = new Set(['water', 'sleep', 'nutrition', 'fitness', 'focus', 'stress', 'meditation', 'gratitude', 'habit', 'goal']);
 
-export function Life({ onCheckIn }: { onCheckIn?: () => void }) {
+export function Life({ onCheckIn, initialDim, onDimOpened }: { onCheckIn?: () => void; initialDim?: string | null; onDimOpened?: () => void }) {
   const [stats, setStats] = useState<any>(null);
   const [dims, setDims] = useState<any>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -33,6 +33,10 @@ export function Life({ onCheckIn }: { onCheckIn?: () => void }) {
   }, []);
 
   useEffect(() => { load().catch(() => {}); }, [load]);
+
+  useEffect(() => {
+    if (initialDim) { setOpenId(initialDim); onDimOpened?.(); }
+  }, [initialDim, onDimOpened]);
 
   const showToast = (msg: string, err = false) => {
     const key = Date.now();

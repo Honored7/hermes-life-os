@@ -3,6 +3,7 @@ import {
   SunHorizon, ChatTeardrop, Plant, Sparkle, UserCircle,
 } from '@phosphor-icons/react';
 import { MotifMark } from '../components/brand/MotifMark';
+import { subscribeOpen, subscribeTab } from '../lib/navBus';
 import { ThemeToggle } from '../components/brand/ThemeToggle';
 import type { IconComponent } from '../components/icons/dimensions';
 
@@ -34,6 +35,7 @@ function TabFallback() {
 
 export function AppShell() {
   const [active, setActive] = useState<TabId>('today');
+  const [initialDim, setInitialDim] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -44,6 +46,8 @@ export function AppShell() {
     if (connected || err) window.history.replaceState({}, '', window.location.pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  useEffect(() => subscribeOpen((dim) => { setActive('life'); setInitialDim(dim); }), []);
+  useEffect(() => subscribeTab((t) => setActive(t as TabId)), []);
 
   return (
     <div className="mx-auto flex h-[100dvh] max-w-md flex-col bg-bg text-ink">
@@ -59,7 +63,7 @@ export function AppShell() {
         <Suspense fallback={<TabFallback />}>
           {active === 'today' && <Today />}
           {active === 'companion' && <Companion />}
-          {active === 'life' && <Life onCheckIn={() => setActive('today')} />}
+          {active === 'life' && <Life onCheckIn={() => setActive('today')} initialDim={initialDim} onDimOpened={() => setInitialDim(null)} />}
           {active === 'insights' && <Insights />}
           {active === 'you' && <You initialNotice={notice} />}
         </Suspense>

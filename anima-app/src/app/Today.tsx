@@ -3,10 +3,12 @@ import type { CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Smiley, Waves, Lightning, Wind, CloudRain, Fire, BatteryLow, HeartHalf,
-  CalendarBlank, Check, ArrowSquareOut, Sparkle,
+  CalendarBlank, Check, ArrowSquareOut, Sparkle, Heart,
 } from '@phosphor-icons/react';
 import type { IconComponent } from '../components/icons/dimensions';
-import { streamCheckIn, getCalendarEvents, logLife } from '../lib/api';
+import { streamCheckIn, getCalendarEvents, logLife, getTodayBriefing, postLifeLog } from '../lib/api';
+import { getTodayAlive } from '../lib/api';
+import { openDimension, openTab } from '../lib/navBus';
 import { presentation, toneOf } from '../lib/eventTone';
 import { InterventionCard } from '../components/cards/InterventionCard';
 import { ProtocolJourney } from '../components/journey/ProtocolJourney';
@@ -100,6 +102,38 @@ export function Today() {
   const [steadyOpen, setSteadyOpen] = useState(false);
   const [prepareMode, setPrepareMode] = useState<PrepareMode>(null);
 
+  // ── the companion's briefing (greeting, true line, suggestion) ──
+  const [briefing, setBriefing] = useState<any>(null);
+  useEffect(() => { getTodayBriefing().then(setBriefing).catch(() => {}); }, []);
+
+  // ── blooming heart for the mood check-in ──
+  const [bloomOpen, setBloomOpen] = useState(false);
+  const [breathSuggest, setBreathSuggest] = useState(false);
+  const [alive, setAlive] = useState<any>(null);
+  useEffect(() => { getTodayAlive().then(setAlive).catch(() => {}); }, []);
+
+  // ── today's intentions (local, per-day, gentle) ──
+  type Intention = { id: string; text: string; done: boolean };
+  const intentKey = () => {
+    const d = new Date();
+    return `motif.intentions.${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const [intentions, setIntentions] = useState<Intention[]>(() => {
+    try { return JSON.parse(localStorage.getItem(intentKey()) || '[]') as Intention[]; } catch { return []; }
+  });
+  const [addingIntent, setAddingIntent] = useState(false);
+  const [newIntentText, setNewIntentText] = useState('');
+  useEffect(() => { try { localStorage.setItem(intentKey(), JSON.stringify(intentions)); } catch {} }, [intentions]);
+  const addIntent = () => {
+    const t = newIntentText.trim();
+    if (!t) return;
+    setIntentions((prev) => [...prev, { id: String(Date.now()), text: t, done: false }]);
+    setNewIntentText('');
+    setAddingIntent(false);
+  };
+  const toggleIntent = (id: string) => setIntentions((prev) => prev.map((i) => i.id === id ? { ...i, done: !i.done } : i));
+  const removeIntent = (id: string) => setIntentions((prev) => prev.filter((i) => i.id !== id));
+
   const accent = mood ? mood.color : 'var(--lantern)';
   const nowMs = Date.now();
 
@@ -116,11 +150,14 @@ export function Today() {
     : 0;
 
   const hour = new Date().getHours();
-  const greeting =
-    hour < 5 ? 'It’s late' :
-    hour < 12 ? 'Good morning' :
-    hour < 17 ? 'Good afternoon' :
-    hour < 21 ? 'Good evening' : 'It’s late';
+  const greeting = briefing?.greeting || (
+    hour < 5 ? "It's late" :
+    hour < 12 ? "Good morning" :
+    hour < 17 ? "Good afternoon" :
+    hour < 21 ? "Good evening" : "It's late");
+  const trueLine = briefing?.true_line;
+  const isEvening = !!briefing?.evening || hour >= 18;
+  const suggestion = briefing?.suggestion;
 
   useEffect(() => {
     getCalendarEvents(8).then((d) => setEvents(d?.events || [])).catch(() => {});
@@ -178,6 +215,16 @@ export function Today() {
   };
 
   // ── full-screen overlays ──
+  if (breathSuggest) {
+    return (
+      <BreathingSession
+        config={{ name: 'Unwind', breathing_pattern: PATTERNS.unwind }}
+        state="calm"
+        severityBefore={0}
+        onClose={() => setBreathSuggest(false)}
+      />
+    );
+  }
   if (showSession && meta?.session_config?.breathing_pattern && !meta?.protocol) {
     return (
       <BreathingSession
@@ -236,7 +283,11 @@ export function Today() {
       <div className="relative space-y-6 pb-8 pt-2">
         <div>
           <h1 className="font-wizard text-[28px] leading-tight">{greeting}.</h1>
-          <p className="mt-1 text-sm text-muted">How are you arriving right now?</p>
+          {trueLine ? (
+            <p className="mt-1.5 text-[13px] leading-snug text-muted">{trueLine}</p>
+          ) : (
+            <p className="mt-1 text-sm text-muted">{isEvening ? 'How did the day go?' : 'How are you arriving right now?'}</p>
+          )}
         </div>
 
         <MoodAura
@@ -247,7 +298,7 @@ export function Today() {
         />
 
         {/* ── the horizon: tone-aware, stackable, settle-able ── */}
-        {imminent && (
+        {(
           <AnimatePresence mode="wait">
             {cardOpen ? (
               <motion.div
@@ -371,6 +422,49 @@ export function Today() {
                     );
                   })}
                 </div>
+
+                {/* ── your intentions (local, today-only) ── */}
+                <div className="mt-3 border-t border-line/50 pt-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-faint">your intentions</p>
+                    <button onClick={() => setAddingIntent(true)}
+                      className="flex items-center gap-1 text-[11px] text-faint transition-colors hover:text-lantern">
+                      <span className="grid h-4 w-4 place-items-center rounded-full bg-lantern/15">
+                        <span className="text-[10px] text-lantern">+</span>
+                      </span>
+                      add
+                    </button>
+                  </div>
+                  {intentions.length === 0 && !addingIntent && (
+                    <p className="text-[11px] text-faint">nothing yet — a small list for today only.</p>
+                  )}
+                  <div className="space-y-1">
+                    {intentions.map((i) => (
+                      <div key={i.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-bg/40">
+                        <button onClick={() => toggleIntent(i.id)}
+                          className="grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-all"
+                          style={{ borderColor: i.done ? 'var(--sage)' : 'var(--line)', background: i.done ? 'var(--sage)' : 'transparent' }}>
+                          {i.done && <Check size={11} weight="bold" style={{ color: 'var(--bg)' }} />}
+                        </button>
+                        <span className="min-w-0 flex-1 truncate text-[13px]"
+                          style={{ color: i.done ? 'var(--faint)' : 'var(--ink)', textDecoration: i.done ? 'line-through' : 'none' }}>
+                          {i.text}
+                        </span>
+                        <button onClick={() => removeIntent(i.id)} className="text-faint transition-colors hover:text-mood-angry">×</button>
+                      </div>
+                    ))}
+                    {addingIntent && (
+                      <div className="flex items-center gap-2 rounded-lg bg-bg/40 px-2 py-1.5">
+                        <input value={newIntentText} onChange={(e) => setNewIntentText(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') addIntent(); if (e.key === 'Escape') { setAddingIntent(false); setNewIntentText(''); } }}
+                          autoFocus placeholder="what's on your mind today?"
+                          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-faint" />
+                        <button onClick={addIntent} className="text-[11px] text-lantern">add</button>
+                        <button onClick={() => { setAddingIntent(false); setNewIntentText(''); }} className="text-[11px] text-faint">×</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </motion.div>
             ) : (
               // ── settled: the card steps aside into one quiet line ──
@@ -409,32 +503,121 @@ export function Today() {
           </AnimatePresence>
         )}
 
-        {/* ── the check-in heartbeat ── */}
-        <div className="grid grid-cols-4 gap-2.5">
-          {MOODS.map((m) => {
-            const selected = mood?.state === m.state;
-            return (
-              <button
-                key={m.state}
-                onClick={() => {
-                  if (phase !== 'select') { setPhase('select'); setWizardMsg(''); setMeta(null); }
-                  setMood(m);
-                }}
-                className="flex flex-col items-center gap-2 rounded-xl border py-3.5 transition-all duration-300"
-                style={{
-                  borderColor: selected ? m.color : 'var(--line)',
-                  background: selected ? `color-mix(in srgb, ${m.color} 13%, transparent)` : 'var(--surface)',
-                  boxShadow: selected ? `0 0 18px color-mix(in srgb, ${m.color} 25%, transparent)` : 'none',
-                }}
-              >
-                <m.icon size={26} weight="light" style={{ color: selected ? m.color : 'var(--faint)' }} />
-                <span className="text-[11px] font-medium" style={{ color: selected ? m.color : 'var(--muted)' }}>
-                  {m.label}
-                </span>
+        {/* ── what's alive today: habits, goals, movement ── */}
+        {alive && (alive.habits.length > 0 || alive.goals.length > 0 || alive.move_min > 0) && (
+          <div className="rounded-card border border-line bg-surface p-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-faint">what's alive today</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {alive.habits.map((h: string) => (
+                <button key={h} onClick={() => openDimension('habits')}
+                  className="rounded-full border border-line px-3 py-1.5 text-[11px] text-muted transition-all hover:border-sage/50 hover:text-sage">
+                  {h}
+                </button>
+              ))}
+              {alive.goals.map((g: any) => (
+                <button key={g.name} onClick={() => openDimension('goals')}
+                  className="rounded-full border border-line px-3 py-1.5 text-[11px] text-muted transition-all hover:border-lantern/50 hover:text-lantern">
+                  {g.name} · {g.progress}%
+                </button>
+              ))}
+              {alive.move_min > 0 && (
+                <button onClick={() => openDimension('fitness')}
+                  className="rounded-full border border-line px-3 py-1.5 text-[11px] text-muted transition-all hover:border-ember/50 hover:text-ember">
+                  {alive.move_min} min moved
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── the companion's gentle suggestion ── */}
+        {suggestion && !isEvening && (
+          <button onClick={() => {
+            if (suggestion.kind === 'breathe') setBreathSuggest(true);
+            else postLifeLog(suggestion.kind, suggestion.payload || {}).catch(() => {});
+          }}
+            className="flex w-full items-center gap-3 rounded-card border border-dashed border-lantern/30 bg-surface/50 px-4 py-3 text-left transition-all hover:-translate-y-0.5 hover:border-lantern/60">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-lantern/10">
+              <Sparkle size={16} weight="light" style={{ color: 'var(--lantern)' }} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-faint">a gentle suggestion</p>
+              <p className="font-wizard text-[14px] leading-snug text-ink">{suggestion.text}</p>
+            </span>
+            <span className="shrink-0 text-[11px] text-faint">tap</span>
+          </button>
+        )}
+
+        {isEvening && (
+          <div className="rounded-card border border-sage/30 bg-surface p-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-faint">the day is closing</p>
+            <p className="mt-1 font-wizard text-[15px] leading-snug text-muted">
+              How did it go? Tap the heart to name how you feel, and let it settle.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={() => setBreathSuggest(true)}
+                className="rounded-full border border-sage/40 px-3.5 py-1.5 text-[11px] text-sage transition-all hover:bg-sage/10">
+                a moment of stillness
               </button>
-            );
-          })}
-        </div>
+              <button onClick={() => openTab('life')}
+                className="rounded-full border border-line px-3.5 py-1.5 text-[11px] text-muted transition-all hover:border-lantern/50 hover:text-lantern">
+                write the day down
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── the check-in heartbeat: blooming heart ── */}
+        {!bloomOpen && !mood ? (
+          <button onClick={() => setBloomOpen(true)}
+            className="group flex w-full items-center justify-between rounded-card border border-line bg-surface px-4 py-3.5 transition-all hover:-translate-y-0.5 hover:border-lantern/40">
+            <span className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-full"
+                style={{ background: 'color-mix(in srgb, var(--lantern) 14%, transparent)' }}>
+                <Heart size={20} weight="light" style={{ color: 'var(--lantern)' }} />
+              </span>
+              <span className="text-left">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-faint">{isEvening ? 'how did it go?' : 'how are you?'}</p>
+                <p className="text-[14px] font-medium text-ink">tap to check in</p>
+              </span>
+            </span>
+            <span className="text-faint transition-colors group-hover:text-lantern">→</span>
+          </button>
+        ) : (
+          <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+            className="space-y-3">
+            <div className="grid grid-cols-4 gap-2.5">
+              {MOODS.map((m) => {
+                const selected = mood?.state === m.state;
+                return (
+                  <button
+                    key={m.state}
+                    onClick={() => {
+                      if (phase !== 'select') { setPhase('select'); setWizardMsg(''); setMeta(null); }
+                      setMood(m);
+                    }}
+                    className="flex flex-col items-center gap-2 rounded-xl border py-3.5 transition-all duration-300"
+                    style={{
+                      borderColor: selected ? m.color : 'var(--line)',
+                      background: selected ? `color-mix(in srgb, ${m.color} 13%, transparent)` : 'var(--surface)',
+                      boxShadow: selected ? `0 0 18px color-mix(in srgb, ${m.color} 25%, transparent)` : 'none',
+                    }}
+                  >
+                    <m.icon size={26} weight="light" style={{ color: selected ? m.color : 'var(--faint)' }} />
+                    <span className="text-[11px] font-medium" style={{ color: selected ? m.color : 'var(--muted)' }}>
+                      {m.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {!mood && (
+              <button onClick={() => setBloomOpen(false)} className="mx-auto block text-[11px] text-faint hover:text-lantern">
+                not now
+              </button>
+            )}
+          </motion.div>
+        )}
 
         <AnimatePresence>
           {mood && phase === 'select' && (
