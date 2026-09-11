@@ -93,6 +93,24 @@ class TestMirror:
         assert top["r"] > 0.3
         assert "question" in m and m["question"] is not None
 
+    def test_dateless_entries_use_timestamp(self, iso_store):
+        # Upstream writers stamp timestamp only (no 'date' field).
+        # The rooms must still see those entries via timestamp fallback.
+        from superapp.experience import climate, mirror
+
+        for i in range(6):
+            iso_store.save_sleep(
+                iso_store.load_sleep() + [{"date": _day_ago(i), "hours": 7.0,
+                                           "quality": 6}])
+        iso_store.write_memory({"type": "mood", "state": "good",
+                                "mood": 7.0})  # no 'date' key
+        m = mirror()
+        today = _day_ago(0)
+        tap = [t for t in m["tapestry"] if t["date"] == today][0]
+        assert tap["mood"] == pytest.approx(0.7)
+        c = climate()
+        assert c["span"] >= 6  # sleep-file dates carry the span
+
     def test_shared_pearson(self):
         from superapp.intelligence import pearson
 

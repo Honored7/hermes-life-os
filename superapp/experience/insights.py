@@ -139,7 +139,7 @@ def mirror():
     move = {}
     focus = {}
     for e in store.get_recent_memory(days=14) or []:
-        d = str(e.get('date') or '')
+        d = _date_of(e)
         if e.get('type') in ('checkin', 'mood'):
             mv = e.get('mood')
             sev = e.get('severity')
@@ -224,7 +224,7 @@ def _climate_data(lens):
     journal = {}
     grat = {}
     for e in mem:
-        d = str(e.get('date') or '')
+        d = _date_of(e)
         if not d:
             continue
         t = e.get('type')

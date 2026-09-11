@@ -16,6 +16,7 @@ import json
 import time
 from superapp.experience.insights import get_wins
 from superapp.experience import journal
+from superapp.experience.insights import _date_of
 
 def _counts() -> dict:
     try:
@@ -128,12 +129,12 @@ def _moments(mem):
         t = m.get('type')
         txt = m.get('content') or ''
         if t in ('checkin', 'mood'):
-            out.append({'date': m.get('date'), 'kind': 'presence', 'text': txt or 'you checked in'})
+            out.append({'date': _date_of(m), 'kind': 'presence', 'text': txt or 'you checked in'})
         elif t == 'journal':
-            out.append({'date': m.get('date'), 'kind': 'words', 'text': txt[:80] or 'a word you wrote'})
+            out.append({'date': _date_of(m), 'kind': 'words', 'text': txt[:80] or 'a word you wrote'})
         elif t == 'gratitude':
             items = m.get('items') or []
-            out.append({'date': m.get('date'), 'kind': 'light', 'text': ', '.join((str(i) for i in items)) if items else 'a good thing'})
+            out.append({'date': _date_of(m), 'kind': 'light', 'text': ', '.join((str(i) for i in items)) if items else 'a good thing'})
     return out[-24:]
 
 def keepsake():
@@ -145,7 +146,7 @@ def keepsake():
     stresses = [m for m in mem if m.get('type') == 'stress']
     grat = [m for m in mem if m.get('type') == 'gratitude']
     meds = [m for m in mem if m.get('type') == 'meditation']
-    days = {str(m.get('date')) for m in mem if m.get('date')}
+    days = {d for m in mem for d in [_date_of(m)] if d}
     recognitions = []
     if len(checkins) >= 20:
         recognitions.append(f"you've checked in {len(checkins)} times — showing up is the whole practice.")
