@@ -40,3 +40,10 @@ def keepsake() -> dict[str, Any]:
 def moments() -> dict[str, Any]:
     """Warm one-liners earned from real data + next invitation."""
     return _keepsake.moments()
+
+
+def whisper_line(dimension: str = "today") -> dict[str, Any]:
+    """Ambient companion: one specific line for a dimension."""
+    from superapp.experience import whisper as _whisper
+
+    return _whisper.whisper(dimension)

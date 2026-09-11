@@ -571,8 +571,23 @@ async def calendar_start(provider: str):
             "note": "OAuth migrates with the integrations layer."}
 
 
-# ── rhythm (scheduler over HTTP, for the PWA/debug) ───────────────────
+# ── whispers (ambient companion: one line per context) ───────────────
 
+@app.get("/api/v1/whisper")
+async def whisper_line(dimension: str = "today"):
+    from superapp.experience import whisper
+
+    return whisper(dimension)
+
+
+@app.get("/api/v1/whisper/today")
+async def whisper_today():
+    from superapp.experience import whisper
+
+    return whisper("today")
+
+
+# ── rhythm (scheduler over HTTP, for the PWA/debug) ───────────────────
 @app.get("/api/v1/rhythm/{mode}")
 async def rhythm_preview(mode: str):
     render = {"morning": rhythm.render_morning,

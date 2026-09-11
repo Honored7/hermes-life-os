@@ -34,6 +34,7 @@ from superapp.experience.quiet import (
     substance,
 )
 from superapp.experience.vitals import rhythm_payload, sleep_summary
+from superapp.experience.whisper import whisper
 
 __all__ = [
     "QUIET_DIMS",
@@ -60,4 +61,5 @@ __all__ = [
     "spending",
     "substance",
     "tag_entry",
+    "whisper",
 ]
