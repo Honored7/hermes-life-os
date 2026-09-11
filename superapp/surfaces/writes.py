@@ -195,6 +195,67 @@ def log_note(content: str, entry_type: str = "note") -> dict[str, Any]:
         "remember", {"type": entry_type, "content": content}))
 
 
+# ── quiet dimensions: spending, social, substance, reading, medication ──
+# These join Life as calm cards (no flames, no punish): money-anxiety
+# calm, connection, lever-view, stillness, and care. Upstream owns the
+# stores; the whisper layer decides when any of it is worth surfacing.
+
+def log_spending(amount: float, category: str = "uncategorized",
+                 notes: str = "") -> dict[str, Any]:
+    amount = _nonneg(_num({"amount": amount}, "amount"), "amount")
+    return _ok("spending", _dispatch("log_expense", {
+        "amount": amount, "category": category.strip() or "uncategorized",
+        "notes": notes,
+    }))
+
+
+def log_social(with_who: str, quality: int = 5, duration_min: int = 0,
+               notes: str = "") -> dict[str, Any]:
+    with_who = _req_str({"with_who": with_who}, "with_who")
+    quality = int(_range(_num({"quality": quality}, "quality", 5),
+                         "quality", 1, 10))
+    duration_min = _int({"duration_min": duration_min}, "duration_min")
+    _nonneg(duration_min, "duration_min")
+    return _ok("social", _dispatch("log_social_interaction", {
+        "with_who": with_who, "quality": quality,
+        "duration_min": duration_min, "notes": notes,
+    }))
+
+
+def log_substance(substance: str, amount: float = 0, unit: str = "",
+                  notes: str = "") -> dict[str, Any]:
+    substance = _req_str({"substance": substance}, "substance")
+    amount = _nonneg(_num({"amount": amount}, "amount"), "amount")
+    return _ok("substance", _dispatch("log_substance", {
+        "substance": substance, "amount": amount, "unit": unit,
+        "notes": notes,
+    }))
+
+
+def log_reading(title: str, minutes: int = 0, pages: int = 0,
+                total_pages: int | None = None,
+                notes: str = "") -> dict[str, Any]:
+    title = _req_str({"title": title}, "title")
+    minutes = _int({"minutes": minutes}, "minutes")
+    pages = _int({"pages": pages}, "pages")
+    _nonneg(minutes, "minutes")
+    _nonneg(pages, "pages")
+    payload: dict[str, Any] = {"title": title, "minutes": minutes,
+                               "pages": pages, "notes": notes}
+    if total_pages is not None:
+        payload["total_pages"] = _int({"total_pages": total_pages},
+                                      "total_pages")
+    return _ok("reading", _dispatch("log_reading", payload))
+
+
+def log_medication(name: str, taken: bool = True,
+                   notes: str = "") -> dict[str, Any]:
+    name = _req_str({"name": name}, "name")
+    return _ok("medication", _dispatch("log_medication", {
+        "name": name, "taken": bool(taken), "notes": notes,
+    }))
+
+
 # ── habits & goals (upstream owns streaks, freezes, goal-metric linkage) ─
 
 def update_habit(name: str, completed: bool = True,
@@ -314,6 +375,25 @@ def write(kind: str, payload: dict | None = None) -> dict[str, Any]:
     if k in ("note", "remember"):
         return log_note(payload.get("content", ""), **{
             a: payload[a] for a in ("entry_type",) if a in payload})
+    if k in ("spending", "expense"):
+        return log_spending(payload.get("amount", 0), **{
+            a: payload[a] for a in
+            ("category", "notes") if a in payload})
+    if k == "social":
+        return log_social(payload.get("with_who", ""), **{
+            a: payload[a] for a in
+            ("quality", "duration_min", "notes") if a in payload})
+    if k == "substance":
+        return log_substance(payload.get("substance", ""), **{
+            a: payload[a] for a in
+            ("amount", "unit", "notes") if a in payload})
+    if k == "reading":
+        return log_reading(payload.get("title", ""), **{
+            a: payload[a] for a in
+            ("minutes", "pages", "total_pages", "notes") if a in payload})
+    if k == "medication":
+        return log_medication(payload.get("name", ""), **{
+            a: payload[a] for a in ("taken", "notes") if a in payload})
     if k == "habit":
         return update_habit(payload.get("name", payload.get("habit_name",
                                                              "")), **{
@@ -332,4 +412,5 @@ def write(kind: str, payload: dict | None = None) -> dict[str, Any]:
     raise UnknownKindError(
         f"Unknown write kind: {kind!r}. Known: water, sleep, nutrition, "
         "fitness, focus, stress, meditation, gratitude, mood, dream, note, "
+        "spending, social, substance, reading, medication, "
         "habit, goal, relief.")

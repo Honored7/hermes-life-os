@@ -52,7 +52,44 @@ class TestResolveProvider:
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
         assert lp.resolve_provider(None) == "ollama"
+
+
+class TestGroqProvider:
+    """Groq: OpenAI-compatible testing provider (fast + free tier)."""
+
+    def test_explicit_groq(self, monkeypatch):
+        monkeypatch.setenv("GROQ_API_KEY", "gsk-x")
+        assert lp.resolve_provider("groq") == "groq"
+        assert lp.default_model_for("groq") == "llama-3.3-70b-versatile"
+
+    def test_autodetect_groq_key_alone(self, monkeypatch):
+        monkeypatch.delenv("LIFE_OS_PROVIDER", raising=False)
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        monkeypatch.setenv("GROQ_API_KEY", "gsk-x")
+        assert lp.resolve_provider(None) == "groq"
+
+    def test_autodetect_prefers_paid_over_groq(self, monkeypatch):
+        monkeypatch.delenv("LIFE_OS_PROVIDER", raising=False)
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+        monkeypatch.setenv("OPENAI_API_KEY", "y")
+        monkeypatch.setenv("GROQ_API_KEY", "gsk-x")
+        assert lp.resolve_provider(None) == "openai"
+
+    def test_missing_groq_key_raises(self, monkeypatch):
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+        with pytest.raises(lp.ProviderError):
+            lp.get_client("groq")
+
+    def test_groq_client_construction(self, monkeypatch):
+        monkeypatch.setenv("GROQ_API_KEY", "gsk-x")
+        client = lp.get_client("groq")
+        assert client.chat.completions is not None
+        assert str(client.base_url).rstrip("/") == "https://api.groq.com/openai/v1"
 
 
 class TestGetClientErrors:

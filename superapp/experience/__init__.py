@@ -25,9 +25,18 @@ from superapp.experience.journal import (
 )
 from superapp.experience.keepsake import keepsake, moments
 from superapp.experience.life_stats import dimension_stats
+from superapp.experience.quiet import (
+    QUIET_DIMS,
+    medication,
+    reading,
+    social,
+    spending,
+    substance,
+)
 from superapp.experience.vitals import rhythm_payload, sleep_summary
 
 __all__ = [
+    "QUIET_DIMS",
     "add_entry",
     "alive",
     "briefing",
@@ -39,11 +48,16 @@ __all__ = [
     "get_wins",
     "keepsake",
     "list_entries",
+    "medication",
     "mirror",
     "moments",
     "mood_trend",
     "mood_weather",
+    "reading",
     "rhythm_payload",
     "sleep_summary",
+    "social",
+    "spending",
+    "substance",
     "tag_entry",
 ]

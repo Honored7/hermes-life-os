@@ -1,0 +1,7 @@
+# Upstream snapshot this superapp tree was verified against.
+# Update ONLY after the full suite passes on the new snapshot:
+#   git fetch upstream
+#   <write new hash + date below>
+#   .venv/bin/python -m pytest tests/ -q
+UPSTREAM_COMMIT=2d7db34e880ef32553c8cc93a6c28bbac986a042
+UPSTREAM_DATE=2026-09-11

@@ -226,3 +226,38 @@ class TestLayering:
         if len(parts) >= 2:
             return ".".join(parts[:2])
         return "superapp"
+
+    # Only these seam modules may touch demo/* (anywhere, even lazily).
+    # Everything else talks to seams, never to upstream directly — this
+    # is what lets upstream change shape without Motif breaking.
+    SEAM_ALLOWLIST = {
+        Path("superapp/core/store.py"),
+        Path("superapp/experience/store.py"),
+        Path("superapp/intelligence/patterns.py"),
+        Path("superapp/surfaces/writes.py"),
+        Path("superapp/surfaces/rhythm.py"),
+    }
+    DEMO_MODULES = {
+        "storage", "tools", "patterns", "analytics", "plugins",
+        "notifications", "scheduler", "backup", "nudges", "demo",
+        "integrations", "wellness",
+    }
+
+    def test_demo_access_only_through_seams(self):
+        violations = []
+        for path in self._parse_files():
+            imported: set[str] = set()
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    imported.update(a.name.split(".")[0]
+                                    for a in node.names)
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    imported.add(node.module.split(".")[0])
+            touched = imported & self.DEMO_MODULES
+            if touched and path.relative_to(ROOT) not in self.SEAM_ALLOWLIST:
+                violations.append(
+                    f"{path.relative_to(ROOT)} touches {sorted(touched)}")
+        assert not violations, (
+            "demo/* may only be touched inside seam modules "
+            f"(see SEAM_ALLOWLIST): {violations}")

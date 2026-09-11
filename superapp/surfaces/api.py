@@ -193,6 +193,11 @@ async def life_dims():
         "fitness": {"items": last8(store.load_fitness)},
         "focus": {"items": last8(store.load_focus)},
         "mental": {"items": last8(store.load_mental)},
+        "spending": {"items": last8(store.load_spending)},
+        "social": {"items": last8(store.load_social)},
+        "substance": {"items": last8(store.load_substance)},
+        "reading": {"items": last8(store.load_reading)},
+        "medication": {"items": last8(store.load_medication)},
     }
 
 
@@ -241,6 +246,41 @@ async def life_mental():
     from superapp.experience import dimension_stats
 
     return dimension_stats()["mental"]
+
+
+@app.get("/api/v1/life/spending")
+async def life_spending():
+    from superapp.experience import dimension_stats
+
+    return dimension_stats()["spending"]
+
+
+@app.get("/api/v1/life/social")
+async def life_social():
+    from superapp.experience import dimension_stats
+
+    return dimension_stats()["social"]
+
+
+@app.get("/api/v1/life/substance")
+async def life_substance():
+    from superapp.experience import dimension_stats
+
+    return dimension_stats()["substance"]
+
+
+@app.get("/api/v1/life/reading")
+async def life_reading():
+    from superapp.experience import dimension_stats
+
+    return dimension_stats()["reading"]
+
+
+@app.get("/api/v1/life/medication")
+async def life_medication():
+    from superapp.experience import dimension_stats
+
+    return dimension_stats()["medication"]
 
 
 @app.get("/api/v1/life/journal")

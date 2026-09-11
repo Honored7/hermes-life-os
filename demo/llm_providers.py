@@ -10,8 +10,9 @@ changes anywhere else in the project:
     - openai      OPENAI_API_KEY
     - anthropic   ANTHROPIC_API_KEY
     - openrouter  OPENROUTER_API_KEY (original default, incl. Hermes-3)
+    - groq        GROQ_API_KEY (fast + free tier - the testing provider)
 
-openai / openrouter / ollama all speak the OpenAI-compatible
+openai / openrouter / groq / ollama all speak the OpenAI-compatible
 `chat.completions` API, so they reuse the `openai` SDK directly with a
 swapped base_url. Anthropic's Messages API has a different wire format
 (separate `system` param, content-block based messages, `tool_use` /
@@ -30,19 +31,21 @@ import os
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
-PROVIDERS = ("ollama", "openai", "anthropic", "openrouter")
+PROVIDERS = ("ollama", "openai", "anthropic", "openrouter", "groq")
 
 DEFAULT_MODELS: Dict[str, str] = {
     "openrouter": "nousresearch/hermes-3-llama-3.1-405b",
     "openai": "gpt-4o-mini",
     "anthropic": "claude-sonnet-5",
     "ollama": "llama3.1",
+    "groq": "llama-3.3-70b-versatile",
 }
 
 _ENV_KEYS: Dict[str, str] = {
     "openrouter": "OPENROUTER_API_KEY",
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
+    "groq": "GROQ_API_KEY",
     # ollama needs no key - local server
 }
 
@@ -59,7 +62,7 @@ def resolve_provider(explicit: Optional[str] = None) -> str:
 
     Priority: explicit --provider flag > LIFE_OS_PROVIDER env var >
     auto-detect the first available API key in this order:
-    anthropic, openai, openrouter > fall back to ollama (assumed local,
+    anthropic, openai, openrouter, groq > fall back to ollama (assumed local,
     no key required - if it isn't running, the first request will fail
     with a clear connection error).
     """
@@ -79,7 +82,7 @@ def resolve_provider(explicit: Optional[str] = None) -> str:
             )
         return env_choice
 
-    for provider in ("anthropic", "openai", "openrouter"):
+    for provider in ("anthropic", "openai", "openrouter", "groq"):
         if os.environ.get(_ENV_KEYS[provider]):
             return provider
 
@@ -96,8 +99,21 @@ def get_client(provider: str):
     tools=, tool_choice=, max_tokens=)` that returns an OpenAI-shaped
     response, regardless of which provider is behind it.
     """
-    if provider in ("openai", "openrouter", "ollama"):
+    if provider in ("openai", "openrouter", "groq", "ollama"):
         from openai import OpenAI
+
+        if provider == "groq":
+            key = os.environ.get("GROQ_API_KEY")
+            if not key:
+                raise ProviderError(
+                    "Set GROQ_API_KEY first (free tier at console.groq.com).\n"
+                    "  Windows: set GROQ_API_KEY=gsk-...\n"
+                    "  macOS/Linux: export GROQ_API_KEY=gsk-..."
+                )
+            return OpenAI(
+                api_key=key,
+                base_url="https://api.groq.com/openai/v1",
+            )
 
         if provider == "openrouter":
             key = os.environ.get("OPENROUTER_API_KEY")
