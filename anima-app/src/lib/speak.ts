@@ -48,6 +48,46 @@ export function supportsSpeech(): boolean {
   }
 }
 
+/**
+ * Voices load asynchronously (Chrome fills the list after first paint).
+ * Warm them early and await them before speaking — otherwise the first
+ * tap can pick "no voice" on a device that actually has one. Resolves
+ * with the voice count (0 = this device genuinely cannot speak).
+ */
+let warmed = false;
+function warmup(): void {
+  if (warmed || !supportsSpeech()) return;
+  warmed = true;
+  try {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => {
+      try { window.speechSynthesis.getVoices(); } catch { /* ignore */ }
+    };
+  } catch { /* ignore */ }
+}
+warmup();
+
+export function ensureVoices(timeoutMs = 2000): Promise<number> {
+  warmup();
+  if (!supportsSpeech()) return Promise.resolve(0);
+  const count = () => {
+    try { return window.speechSynthesis.getVoices().length; } catch { return 0; }
+  };
+  if (count() > 0) return Promise.resolve(count());
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(count()); } };
+    const timer = setTimeout(finish, timeoutMs);
+    try {
+      window.speechSynthesis.onvoiceschanged = () => { clearTimeout(timer); finish(); };
+      window.speechSynthesis.getVoices();
+    } catch {
+      clearTimeout(timer);
+      finish();
+    }
+  });
+}
+
 export function isSpeaking(): boolean {
   try {
     return window.speechSynthesis.speaking;

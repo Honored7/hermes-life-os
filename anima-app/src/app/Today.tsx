@@ -9,7 +9,7 @@ import type { IconComponent } from '../components/icons/dimensions';
 import { streamCheckIn, getCalendarEvents, logLife, getTodayBriefing, postLifeLog } from '../lib/api';
 import { getTodayAlive } from '../lib/api';
 import { fetchWhisper } from '../lib/api';
-import { isSpeaking, speak, stopSpeak, supportsSpeech } from '../lib/speak';
+import { isSpeaking, speak, stopSpeak, supportsSpeech, ensureVoices } from '../lib/speak';
 import { openDimension, openTab } from '../lib/navBus';
 import { presentation, toneOf } from '../lib/eventTone';
 import { InterventionCard } from '../components/cards/InterventionCard';
@@ -114,8 +114,21 @@ export function Today() {
 
   // ── spoken briefing: tap to hear, tap again to stop ──
   const [reading, setReading] = useState(false);
-  const readBriefing = () => {
+  const [voiceHint, setVoiceHint] = useState<string | null>(null);
+  useEffect(() => {
+    if (!voiceHint) return;
+    const t = setTimeout(() => setVoiceHint(null), 6000);
+    return () => clearTimeout(t);
+  }, [voiceHint]);
+  const readBriefing = async () => {
     if (reading || isSpeaking()) { stopSpeak(); setReading(false); return; }
+    // A device with no voice would otherwise fail silently — the exact
+    // "dead button" complaint. Ask first, explain honestly if none.
+    const count = await ensureVoices().catch(() => 0);
+    if (!count) {
+      setVoiceHint('This device has no voice installed, so I stay quiet here. A system voice (or Chrome/Edge) wakes it up.');
+      return;
+    }
     const parts = [greeting + '.', trueLine || '', whisper || '', suggestion && !isEvening ? suggestion.text : '']
       .filter(Boolean).join(' ');
     if (!parts.trim()) return;
@@ -314,6 +327,9 @@ export function Today() {
               </button>
             ) : null}
           </div>
+          {voiceHint ? (
+            <p className="mt-1.5 text-[12px] italic leading-snug text-muted">{voiceHint}</p>
+          ) : null}
           {trueLine ? (
             <p className="mt-1.5 text-[13px] leading-snug text-muted">{trueLine}</p>
           ) : (

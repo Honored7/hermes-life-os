@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { SpeakerHigh } from '@phosphor-icons/react';
 import { getClimate, postLifeLog, fetchWhy } from '../lib/api';
-import { speak, stopSpeak, supportsSpeech, isSpeaking } from '../lib/speak';
+import { speak, stopSpeak, supportsSpeech, isSpeaking, ensureVoices } from '../lib/speak';
 import { openDimension } from '../lib/navBus';
 import { MotifMark } from '../components/brand/MotifMark';
 
@@ -64,8 +64,10 @@ export function Insights() {
                 </p>
                 {supportsSpeech() ? (
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (isSpeaking()) { stopSpeak(); return; }
+                      const n = await ensureVoices().catch(() => 0);
+                      if (!n) { setToast('This device has no voice installed — nothing to hear it with yet.'); return; }
                       speak(why[card.id].text || '');
                     }}
                     className="mt-1.5 flex items-center gap-1.5 text-[11px] text-faint transition-colors hover:text-lantern">
