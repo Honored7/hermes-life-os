@@ -237,6 +237,7 @@ class TestLayering:
         Path("superapp/intelligence/narrate.py"),
         Path("superapp/surfaces/writes.py"),
         Path("superapp/surfaces/rhythm.py"),
+        Path("superapp/surfaces/voice.py"),
     }
     DEMO_MODULES = {
         "storage", "tools", "patterns", "analytics", "plugins",

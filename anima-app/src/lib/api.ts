@@ -319,6 +319,14 @@ export async function fetchWhy(card: any, lens: string, signals?: any, provider?
   return res.json();
 }
 
+/** Mic dictation: posts recorded audio, resolves transcript text. */
+export async function transcribeAudio(blob: Blob): Promise<{ text?: string; unavailable?: boolean; reason?: string }> {
+  const form = new FormData();
+  form.append('audio', blob, 'note.webm');
+  const res = await fetch(`${API_BASE}/api/v1/voice/transcribe`, { method: 'POST', body: form });
+  return res.json();
+}
+
 export async function getMirror(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/insights/mirror`);
   return res.json();

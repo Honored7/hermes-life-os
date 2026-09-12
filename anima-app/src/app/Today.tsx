@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Smiley, Waves, Lightning, Wind, CloudRain, Fire, BatteryLow, HeartHalf,
-  CalendarBlank, Check, ArrowSquareOut, Sparkle, Heart, SpeakerHigh,
+  CalendarBlank, Check, ArrowSquareOut, Sparkle, Heart, SpeakerHigh, Microphone,
 } from '@phosphor-icons/react';
 import type { IconComponent } from '../components/icons/dimensions';
 import { streamCheckIn, getCalendarEvents, logLife, getTodayBriefing, postLifeLog } from '../lib/api';
@@ -112,7 +112,50 @@ export function Today() {
   const [whisper, setWhisper] = useState<string | null>(null);
   useEffect(() => { fetchWhisper('today').then((w) => setWhisper(w?.text || null)).catch(() => {}); }, []);
 
-  // ── spoken briefing: tap to hear, tap again to stop ──
+  // ── mic dictation: speak it, review it, then send it ──
+  const [mic, setMic] = useState<'idle' | 'recording' | 'working' | 'denied'>('idle');
+  const micRec = useRef<MediaRecorder | null>(null);
+  const micChunks = useRef<Blob[]>([]);
+  const micStream = useRef<MediaStream | null>(null);
+  const stopTracks = () => { micStream.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop()); micStream.current = null; };
+  useEffect(() => () => { try { micRec.current?.stop(); } catch { /* idle */ } stopTracks(); }, []);
+  const toggleMic = async () => {
+    if (mic === 'recording') {
+      try { micRec.current?.stop(); } catch { /* already stopped */ }
+      setMic('working');
+      return;
+    }
+    if (mic === 'working') return;
+    setMic('idle');
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setMic('denied');
+      return;
+    }
+    micStream.current = stream;
+    micChunks.current = [];
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : undefined;
+    const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    micRec.current = rec;
+    rec.ondataavailable = (e) => { if (e.data.size) micChunks.current.push(e.data); };
+    rec.onstop = async () => {
+      stopTracks();
+      const blob = new Blob(micChunks.current, { type: rec.mimeType || 'audio/webm' });
+      micChunks.current = [];
+      if (!blob.size) { setMic('idle'); return; }
+      try {
+        const { transcribeAudio } = await import('../lib/api');
+        const r = await transcribeAudio(blob);
+        if (r?.text) setNote((prev) => (prev ? `${prev} ${r.text}` : r.text || ''));
+        else if (r?.unavailable) setMic('idle');
+      } catch { /* network down — back to idle, note untouched */ }
+      setMic('idle');
+    };
+    rec.start();
+    setMic('recording');
+  };
   const [reading, setReading] = useState(false);
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
   useEffect(() => {
@@ -694,12 +737,34 @@ export function Today() {
                 />
               </div>
 
-              <input
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Want to say more? (optional)"
-                className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm outline-none transition-colors placeholder:text-faint focus:border-lantern/60"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Want to say more? (optional)"
+                  className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-sm outline-none transition-colors placeholder:text-faint focus:border-lantern/60"
+                />
+                <button
+                  onClick={toggleMic}
+                  aria-label={mic === 'recording' ? 'Stop dictating' : 'Dictate by voice'}
+                  className="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-xl border transition-all"
+                  style={{
+                    borderColor: mic === 'recording' ? 'var(--ember)' : 'var(--line)',
+                    color: mic === 'recording' ? 'var(--ember)' : 'var(--faint)',
+                    backgroundColor: mic === 'recording' ? 'color-mix(in srgb, var(--ember) 10%, transparent)' : 'transparent',
+                  }}>
+                  <Microphone size={18} weight="light" />
+                </button>
+              </div>
+              {mic === 'recording' ? (
+                <p className="mt-1.5 text-[12px] italic text-muted">listening… tap the mic to finish</p>
+              ) : null}
+              {mic === 'working' ? (
+                <p className="mt-1.5 text-[12px] italic text-muted">hearing what you said…</p>
+              ) : null}
+              {mic === 'denied' ? (
+                <p className="mt-1.5 text-[12px] italic text-muted">The microphone is blocked — allow it in the browser bar to dictate, or just type.</p>
+              ) : null}
 
               <button
                 onClick={submit}

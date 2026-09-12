@@ -605,6 +605,26 @@ async def why_narrate(req: WhyReq):
     return narrate(req.card, req.lens, req.signals, req.provider)
 
 
+# ── voice input (speech -> text, reviewed before anything persists) ───
+
+@app.post("/api/v1/voice/transcribe")
+async def voice_transcribe(request: Request):
+    from superapp.surfaces import voice as voice_seam
+
+    form = await request.form()
+    upload = form.get("audio")
+    if upload is None or not hasattr(upload, "read"):
+        raise HTTPException(status_code=400,
+                            detail="Multipart 'audio' file is required.")
+    data = await upload.read()
+    result = voice_seam.transcribe_upload(
+        data, getattr(upload, "filename", None) or "note.webm")
+    if result.get("unavailable") and not result.get("text") \
+            and result.get("reason") == "Empty audio.":
+        raise HTTPException(status_code=400, detail="Empty audio.")
+    return result
+
+
 # ── rhythm (scheduler over HTTP, for the PWA/debug) ───────────────────
 @app.get("/api/v1/rhythm/{mode}")
 async def rhythm_preview(mode: str):
