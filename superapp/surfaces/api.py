@@ -643,6 +643,14 @@ async def serve_spa(full_path: str):
 def main() -> None:
     import uvicorn
 
+    try:  # local .env (keys) — shell environment always wins
+        from dotenv import load_dotenv
+
+        load_dotenv(Path(__file__).resolve().parent.parent.parent
+                    / ".env")
+    except ImportError:
+        pass
+
     uvicorn.run(app, host="127.0.0.1", port=int(
         os.environ.get("MOTIF_PORT", "8000")))
 
