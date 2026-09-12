@@ -15,7 +15,15 @@ const PATTERNS = {
   box: { inhale: 4, hold_in: 4, exhale: 4, hold_out: 4, cycles: 6 },
 };
 const PATTERN_LABEL = { unwind: 'Unwind', box: 'Box breath' } as const;
-const ORDER = ['sleep', 'hydration', 'nutrition', 'fitness', 'focus', 'mental', 'habits', 'goals', 'spending', 'social', 'substance', 'reading', 'medication'];
+// Calm grouping: four rooms instead of a thirteen-card wall. The core
+// nine keep their order and weight; the five quiet cards share one
+// low-voice section at the end, de-emphasized but never hidden.
+const SECTIONS: { title: string; sub: string; ids: string[] }[] = [
+  { title: 'Body', sub: 'sleep, water, food, motion', ids: ['sleep', 'hydration', 'nutrition', 'fitness'] },
+  { title: 'Mind & heart', sub: 'attention, weather, people', ids: ['focus', 'mental', 'social'] },
+  { title: 'Momentum', sub: 'threads kept, aims in motion', ids: ['habits', 'goals'] },
+  { title: 'Quiet care', sub: 'noticed, never judged', ids: ['spending', 'substance', 'reading', 'medication'] },
+];
 const SPAN2 = new Set(['sleep', 'goals']);
 const LOG_KINDS = new Set(['water', 'sleep', 'nutrition', 'fitness', 'focus', 'stress', 'meditation', 'gratitude', 'habit', 'goal', 'spending', 'social', 'substance', 'reading', 'medication']);
 
@@ -92,20 +100,30 @@ export function Life({ onCheckIn, initialDim, onDimOpened }: { onCheckIn?: () =>
         {!stats ? (
           <div className="grid h-40 place-items-center"><MotifMark size={56} /></div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {ORDER.map((id) => {
-              const cfg = DIM_BY_ID[id];
-              const model = LIFE_MODELS[id];
-              const d = stats[id];
-              if (!cfg || !model) return null;
-              return (
-                <div key={id} className={(SPAN2.has(id) ? 'col-span-2 ' : '') + 'min-w-0'}>
-                  <DimensionCard cfg={cfg} model={model} data={d} hero={SPAN2.has(id)}
-                    onOpen={() => setOpenId(id)} onAction={onAction} />
+          <div className="space-y-7">
+            {SECTIONS.map((sec) => (
+              <section key={sec.title}>
+                <p className="text-[11px] uppercase tracking-[0.25em] text-faint">{sec.title}</p>
+                <p className="mb-3 mt-0.5 font-wizard text-[13px] text-muted">{sec.sub}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {sec.ids.map((id) => {
+                    const cfg = DIM_BY_ID[id];
+                    const model = LIFE_MODELS[id];
+                    const d = stats[id];
+                    if (!cfg || !model) return null;
+                    return (
+                      <div key={id} className={(SPAN2.has(id) ? 'col-span-2 ' : '') + 'min-w-0'}>
+                        <DimensionCard cfg={cfg} model={model} data={d} hero={SPAN2.has(id)}
+                          onOpen={() => setOpenId(id)} onAction={onAction} />
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-            <div className="col-span-2 min-w-0"><JournalCard /></div>
+              </section>
+            ))}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 min-w-0"><JournalCard /></div>
+            </div>
           </div>
         )}
       </div>

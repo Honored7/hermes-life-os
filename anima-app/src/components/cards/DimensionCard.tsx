@@ -106,7 +106,7 @@ export function DimensionCard({
       <p className={'mt-3 font-wizard leading-snug text-muted ' + (hero ? 'text-[15px]' : 'text-[13px]')}>{read}</p>
 
       {whisper ? (
-        <p className="mt-2 font-wizard text-[12px] italic leading-snug text-faint">“{whisper}”</p>
+        <p className="mt-2 font-wizard text-[13px] italic leading-snug text-muted">“{whisper}”</p>
       ) : null}
 
       {isListDim ? (
