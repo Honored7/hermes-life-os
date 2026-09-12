@@ -234,6 +234,7 @@ class TestLayering:
         Path("superapp/core/store.py"),
         Path("superapp/experience/store.py"),
         Path("superapp/intelligence/patterns.py"),
+        Path("superapp/intelligence/narrate.py"),
         Path("superapp/surfaces/writes.py"),
         Path("superapp/surfaces/rhythm.py"),
     }

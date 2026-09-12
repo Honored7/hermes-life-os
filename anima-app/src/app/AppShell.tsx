@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import {
-  SunHorizon, ChatTeardrop, Plant, Sparkle, UserCircle,
+  SunHorizon, Plant, Sparkle, UserCircle,
 } from '@phosphor-icons/react';
 import { MotifMark } from '../components/brand/MotifMark';
 import { subscribeOpen, subscribeTab } from '../lib/navBus';
@@ -19,11 +19,13 @@ type TabId = 'today' | 'companion' | 'life' | 'insights' | 'you';
 
 const TABS: { id: TabId; label: string; icon: IconComponent }[] = [
   { id: 'today', label: 'Today', icon: SunHorizon },
-  { id: 'companion', label: 'Companion', icon: ChatTeardrop },
   { id: 'life', label: 'Life', icon: Plant },
   { id: 'insights', label: 'Insights', icon: Sparkle },
   { id: 'you', label: 'You', icon: UserCircle },
 ];
+// Companion left the tab bar on purpose: conversation is depth, not
+// destination. It opens from "sit with me" moments (Today, whispers)
+// via openTab('companion') — the route below stays mounted for that.
 
 function TabFallback() {
   return (

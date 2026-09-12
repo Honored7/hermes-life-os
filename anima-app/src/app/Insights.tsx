@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getClimate, postLifeLog } from '../lib/api';
+import { getClimate, postLifeLog, fetchWhy } from '../lib/api';
 import { openDimension } from '../lib/navBus';
 import { MotifMark } from '../components/brand/MotifMark';
 
@@ -7,9 +7,21 @@ export function Insights() {
   const [lens, setLens] = useState<'start' | '30'>('start');
   const [c, setC] = useState<any>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [why, setWhy] = useState<Record<string, { loading?: boolean; text?: string; down?: boolean }>>({});
   useEffect(() => { getClimate(lens).then(setC).catch(() => {}); }, [lens]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4000); return () => clearTimeout(t); }, [toast]);
   if (!c) return <div className="grid h-60 place-items-center"><MotifMark size={56} /></div>;
+
+  const askWhy = async (card: any) => {
+    if (why[card.id]?.loading) return;
+    setWhy((p) => ({ ...p, [card.id]: { loading: true } }));
+    try {
+      const r = await fetchWhy(card, lens, c.signals);
+      setWhy((p) => ({ ...p, [card.id]: r?.text ? { text: r.text } : { down: true } }));
+    } catch {
+      setWhy((p) => ({ ...p, [card.id]: { down: true } }));
+    }
+  };
 
   return (
     <div className="relative h-full overflow-y-auto">
@@ -43,12 +55,23 @@ export function Insights() {
             <p className="mt-2 font-wizard text-[17px] leading-snug text-ink">{card.finding}</p>
             <p className="mt-1 text-[11px] text-faint">{card.proof}</p>
             <p className="mt-2 text-[13px] leading-snug text-muted">{card.meaning}</p>
-            {card.action && (
-              <button onClick={async () => { await postLifeLog(card.action.kind, card.action.payload); setToast('added — the companion will remember.'); }}
-                className="mt-3 rounded-full bg-lantern px-4 py-2 text-xs font-medium text-bg transition-all hover:bg-ember">
-                {card.action.label}
+            {why[card.id]?.text ? (
+              <p className="mt-2 border-l-2 border-lantern/40 pl-3 font-wizard text-[14px] italic leading-snug text-ink">
+                {why[card.id].text}
+              </p>
+            ) : null}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {card.action && (
+                <button onClick={async () => { await postLifeLog(card.action.kind, card.action.payload); setToast('added — the companion will remember.'); }}
+                  className="rounded-full bg-lantern px-4 py-2 text-xs font-medium text-bg transition-all hover:bg-ember">
+                  {card.action.label}
+                </button>
+              )}
+              <button onClick={() => askWhy(card)} disabled={!!why[card.id]?.loading}
+                className="rounded-full border border-line px-4 py-2 text-xs text-muted transition-all hover:border-lantern/50 hover:text-lantern disabled:opacity-60">
+                {why[card.id]?.loading ? 'listening…' : why[card.id]?.down ? 'quiet right now — retry' : 'why is this so?'}
               </button>
-            )}
+            </div>
           </div>
         ))}
         {(c.steady || []).length > 0 && (

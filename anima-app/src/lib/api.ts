@@ -309,6 +309,16 @@ export async function fetchWhisper(dimension: string): Promise<{ dimension: stri
   }
 }
 
+/** Tier-2 narration for one Insight card. Returns {text,...} or {unavailable, reason}. */
+export async function fetchWhy(card: any, lens: string, signals?: any, provider?: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/v1/why`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ card, lens, signals, provider }),
+  });
+  return res.json();
+}
+
 export async function getMirror(): Promise<any> {
   const res = await fetch(`${API_BASE}/api/v1/insights/mirror`);
   return res.json();

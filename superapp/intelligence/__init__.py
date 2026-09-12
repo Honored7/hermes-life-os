@@ -5,10 +5,12 @@ summaries, consistency / time-of-day / day-of-week signals.
 Reads core only. Never writes. Imports superapp.core (types) at most.
 """
 
+from superapp.intelligence.narrate import build_prompt, narrate
 from superapp.intelligence.patterns import (
     correlations,
     detect_patterns,
     pearson,
 )
 
-__all__ = ["correlations", "detect_patterns", "pearson"]
+__all__ = ["build_prompt", "correlations", "detect_patterns", "narrate",
+           "pearson"]

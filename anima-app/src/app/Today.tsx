@@ -8,6 +8,7 @@ import {
 import type { IconComponent } from '../components/icons/dimensions';
 import { streamCheckIn, getCalendarEvents, logLife, getTodayBriefing, postLifeLog } from '../lib/api';
 import { getTodayAlive } from '../lib/api';
+import { fetchWhisper } from '../lib/api';
 import { openDimension, openTab } from '../lib/navBus';
 import { presentation, toneOf } from '../lib/eventTone';
 import { InterventionCard } from '../components/cards/InterventionCard';
@@ -105,6 +106,10 @@ export function Today() {
   // ── the companion's briefing (greeting, true line, suggestion) ──
   const [briefing, setBriefing] = useState<any>(null);
   useEffect(() => { getTodayBriefing().then(setBriefing).catch(() => {}); }, []);
+
+  // ── ambient whisper: one line from the mirror, never a chat window ──
+  const [whisper, setWhisper] = useState<string | null>(null);
+  useEffect(() => { fetchWhisper('today').then((w) => setWhisper(w?.text || null)).catch(() => {}); }, []);
 
   // ── blooming heart for the mood check-in ──
   const [bloomOpen, setBloomOpen] = useState(false);
@@ -288,6 +293,13 @@ export function Today() {
           ) : (
             <p className="mt-1 text-sm text-muted">{isEvening ? 'How did the day go?' : 'How are you arriving right now?'}</p>
           )}
+          {whisper ? (
+            <p className="mt-2 font-wizard text-[13px] italic leading-snug text-muted">“{whisper}”</p>
+          ) : null}
+          <button onClick={() => openTab('companion')}
+            className="mt-2 text-[12px] text-faint underline decoration-dotted underline-offset-4 transition-colors hover:text-lantern">
+            sit with me a moment →
+          </button>
         </div>
 
         <MoodAura

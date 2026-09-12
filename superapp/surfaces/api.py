@@ -572,7 +572,6 @@ async def calendar_start(provider: str):
 
 
 # ── whispers (ambient companion: one line per context) ───────────────
-
 @app.get("/api/v1/whisper")
 async def whisper_line(dimension: str = "today"):
     from superapp.experience import whisper
@@ -585,6 +584,25 @@ async def whisper_today():
     from superapp.experience import whisper
 
     return whisper("today")
+
+
+class WhyReq(BaseModel):
+    card: dict[str, Any] = {}
+    lens: str = "start"
+    signals: Optional[dict[str, Any]] = None
+    provider: Optional[str] = None
+
+
+@app.post("/api/v1/why")
+async def why_narrate(req: WhyReq):
+    """Tier-2 narration for one Insight card. Grounded strictly on the
+    card's own facts; honest 'unavailable' without a provider key."""
+    from superapp.intelligence import narrate
+
+    if not req.card.get("finding"):
+        raise HTTPException(status_code=400,
+                            detail="Card finding is required.")
+    return narrate(req.card, req.lens, req.signals, req.provider)
 
 
 # ── rhythm (scheduler over HTTP, for the PWA/debug) ───────────────────
