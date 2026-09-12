@@ -205,15 +205,19 @@ export function Life({ onCheckIn, initialDim, onDimOpened }: { onCheckIn?: () =>
                             const model = LIFE_MODELS[id];
                             const d = stats[id];
                             if (!cfg || !model) return null;
+                            // Full-width heroes span; so does a lone orphan —
+                            // an odd section never leaves a half-empty row.
+                            const wide = SPAN2.has(id) ||
+                              (sec.ids.length % 2 === 1 && ci === sec.ids.length - 1);
                             return (
                               <motion.div
                                 key={id}
-                                className={(SPAN2.has(id) ? 'col-span-2 ' : '') + 'min-w-0'}
+                                className={(wide ? 'col-span-2 ' : '') + 'min-w-0 h-full'}
                                 initial={{ opacity: 0, y: 14 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.45, delay: Math.min(0.05 * (si * 3 + ci), 0.4), ease: 'easeOut' }}
                               >
-                                <DimensionCard cfg={cfg} model={model} data={d} hero={SPAN2.has(id)}
+                                <DimensionCard cfg={cfg} model={model} data={d} hero={wide}
                                   onOpen={() => setOpenId(id)} onAction={onAction} />
                               </motion.div>
                             );

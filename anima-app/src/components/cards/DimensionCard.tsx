@@ -71,7 +71,7 @@ export function DimensionCard({
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-      className="group relative block w-full min-w-0 cursor-pointer overflow-hidden rounded-card border border-line bg-surface p-5 text-left transition-colors hover:border-lantern/30"
+      className="group relative block h-full w-full min-w-0 cursor-pointer overflow-hidden rounded-card border border-line bg-surface p-5 text-left transition-colors hover:border-lantern/30"
       style={{ backgroundImage: `radial-gradient(110% 90% at 100% 0%, color-mix(in srgb, ${sc} 12%, transparent), transparent 62%)` }}
     >
       <span className="absolute inset-y-0 left-0 w-1 transition-colors duration-500" style={{ background: sc }} />
