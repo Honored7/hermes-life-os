@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { SpeakerHigh } from '@phosphor-icons/react';
 import { getClimate, postLifeLog, fetchWhy } from '../lib/api';
+import { speak, stopSpeak, supportsSpeech, isSpeaking } from '../lib/speak';
 import { openDimension } from '../lib/navBus';
 import { MotifMark } from '../components/brand/MotifMark';
 
@@ -56,9 +58,21 @@ export function Insights() {
             <p className="mt-1 text-[11px] text-faint">{card.proof}</p>
             <p className="mt-2 text-[13px] leading-snug text-muted">{card.meaning}</p>
             {why[card.id]?.text ? (
-              <p className="mt-2 border-l-2 border-lantern/40 pl-3 font-wizard text-[14px] italic leading-snug text-ink">
-                {why[card.id].text}
-              </p>
+              <div>
+                <p className="mt-2 border-l-2 border-lantern/40 pl-3 font-wizard text-[14px] italic leading-snug text-ink">
+                  {why[card.id].text}
+                </p>
+                {supportsSpeech() ? (
+                  <button
+                    onClick={() => {
+                      if (isSpeaking()) { stopSpeak(); return; }
+                      speak(why[card.id].text || '');
+                    }}
+                    className="mt-1.5 flex items-center gap-1.5 text-[11px] text-faint transition-colors hover:text-lantern">
+                    <SpeakerHigh size={13} weight="light" /> hear it
+                  </button>
+                ) : null}
+              </div>
             ) : null}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {card.action && (

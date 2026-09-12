@@ -3,12 +3,13 @@ import type { CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Smiley, Waves, Lightning, Wind, CloudRain, Fire, BatteryLow, HeartHalf,
-  CalendarBlank, Check, ArrowSquareOut, Sparkle, Heart,
+  CalendarBlank, Check, ArrowSquareOut, Sparkle, Heart, SpeakerHigh,
 } from '@phosphor-icons/react';
 import type { IconComponent } from '../components/icons/dimensions';
 import { streamCheckIn, getCalendarEvents, logLife, getTodayBriefing, postLifeLog } from '../lib/api';
 import { getTodayAlive } from '../lib/api';
 import { fetchWhisper } from '../lib/api';
+import { isSpeaking, speak, stopSpeak, supportsSpeech } from '../lib/speak';
 import { openDimension, openTab } from '../lib/navBus';
 import { presentation, toneOf } from '../lib/eventTone';
 import { InterventionCard } from '../components/cards/InterventionCard';
@@ -110,6 +111,18 @@ export function Today() {
   // ── ambient whisper: one line from the mirror, never a chat window ──
   const [whisper, setWhisper] = useState<string | null>(null);
   useEffect(() => { fetchWhisper('today').then((w) => setWhisper(w?.text || null)).catch(() => {}); }, []);
+
+  // ── spoken briefing: tap to hear, tap again to stop ──
+  const [reading, setReading] = useState(false);
+  const readBriefing = () => {
+    if (reading || isSpeaking()) { stopSpeak(); setReading(false); return; }
+    const parts = [greeting + '.', trueLine || '', whisper || '', suggestion && !isEvening ? suggestion.text : '']
+      .filter(Boolean).join(' ');
+    if (!parts.trim()) return;
+    setReading(true);
+    speak(parts, () => setReading(false));
+  };
+  useEffect(() => () => stopSpeak(), []);
 
   // ── blooming heart for the mood check-in ──
   const [bloomOpen, setBloomOpen] = useState(false);
@@ -287,7 +300,20 @@ export function Today() {
 
       <div className="relative space-y-6 pb-8 pt-2">
         <div>
-          <h1 className="font-wizard text-[28px] leading-tight">{greeting}.</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="font-wizard text-[28px] leading-tight">{greeting}.</h1>
+            {supportsSpeech() ? (
+              <button onClick={readBriefing} aria-label={reading ? 'Stop reading' : 'Hear your briefing'}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border transition-all"
+                style={{
+                  borderColor: reading ? 'var(--lantern)' : 'var(--line)',
+                  color: reading ? 'var(--lantern)' : 'var(--faint)',
+                  backgroundColor: reading ? 'color-mix(in srgb, var(--lantern) 10%, transparent)' : 'transparent',
+                }}>
+                <SpeakerHigh size={17} weight="light" />
+              </button>
+            ) : null}
+          </div>
           {trueLine ? (
             <p className="mt-1.5 text-[13px] leading-snug text-muted">{trueLine}</p>
           ) : (
